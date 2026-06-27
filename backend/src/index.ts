@@ -1,7 +1,7 @@
 import http from "http";
 import { Server } from "@colyseus/core";
 import { WebSocketTransport } from "@colyseus/ws-transport";
-import { EnglishRoom } from "./rooms/EnglishRoom.js";
+import { EnglishRoom } from "./colyseus/EnglishRoom.js";
 
 const port = 8080;
 
