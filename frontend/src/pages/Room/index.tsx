@@ -55,22 +55,22 @@ export const ThreeRoom = () => {
         setRoomInstance(room);
         setSessionId(room.sessionId);
 
-        const $ = getStateCallbacks(room);
+        const stateCallbacks = getStateCallbacks(room);
         syncPlayersSnapshot(room.state);
 
         room.onStateChange.once((state) => {
           syncPlayersSnapshot(state);
         });
 
-        $(room.state).players.onAdd((player: Player, playerSessionId: string) => {
+        stateCallbacks(room.state).players.onAdd((player: Player, playerSessionId: string) => {
           setPlayers((prev) => ({ ...prev, [playerSessionId]: player }));
 
-          $(player).onChange(() => {
+          stateCallbacks(player).onChange(() => {
             setPlayers((prev) => ({ ...prev, [playerSessionId]: player }));
           });
         });
 
-        $(room.state).players.onRemove((_player: Player, playerSessionId: string) => {
+        stateCallbacks(room.state).players.onRemove((_player: Player, playerSessionId: string) => {
           setPlayers((prev) => {
             const nextState = { ...prev };
             delete nextState[playerSessionId];
