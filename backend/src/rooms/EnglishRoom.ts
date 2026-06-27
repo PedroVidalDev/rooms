@@ -6,14 +6,24 @@ type MoveMessage = {
   z: number;
 };
 
+type VoiceSignalMessage = {
+  targetSessionId: string;
+  payload: unknown;
+};
+
 const floorHalfSize = 10;
 const playerHalfSize = 0.5;
 const movementSpeed = 0.2;
+const groundedY = 0.5;
+const jumpVelocity = 0.34;
+const gravity = 0.02;
 
 export class EnglishRoom extends Room<{ state: RoomState }> {
+  private voiceReadyClients = new Set<string>();
+  private verticalVelocities = new Map<string, number>();
+
   onCreate(options: any) {
     this.setState(new RoomState());
-    console.log(`Room criada: ${this.roomId}`);
 
     this.onMessage("move", (client, message: MoveMessage) => {
       const player = this.state.players.get(client.sessionId);
@@ -36,25 +46,98 @@ export class EnglishRoom extends Room<{ state: RoomState }> {
         player.z = desiredZ;
       }
     });
+
+    this.onMessage("jump", (client) => {
+      const player = this.state.players.get(client.sessionId);
+      if (!player) {
+        return;
+      }
+
+      const verticalVelocity = this.verticalVelocities.get(client.sessionId) ?? 0;
+      const isGrounded = player.y <= groundedY + 0.001 && verticalVelocity === 0;
+
+      if (isGrounded) {
+        this.verticalVelocities.set(client.sessionId, jumpVelocity);
+      }
+    });
+
+    this.onMessage("voice_ready", (client) => {
+      if (this.voiceReadyClients.has(client.sessionId)) {
+        return;
+      }
+
+      this.voiceReadyClients.add(client.sessionId);
+
+      client.send("voice-ready-peers", {
+        peers: [...this.voiceReadyClients].filter((sessionId) => sessionId !== client.sessionId),
+      });
+
+      this.broadcast("voice-peer-ready", { sessionId: client.sessionId }, { except: client });
+    });
+
+    this.onMessage("voice_disabled", (client) => {
+      if (!this.voiceReadyClients.delete(client.sessionId)) {
+        return;
+      }
+
+      this.broadcast("voice-peer-disabled", { sessionId: client.sessionId }, { except: client });
+    });
+
+    this.onMessage("voice_signal", (client, message: VoiceSignalMessage) => {
+      const targetClient = this.clients.find(
+        (connectedClient) => connectedClient.sessionId === message.targetSessionId,
+      );
+
+      if (!targetClient) {
+        return;
+      }
+
+      targetClient.send("voice-signal", {
+        fromSessionId: client.sessionId,
+        payload: message.payload,
+      });
+    });
+
+    this.setSimulationInterval(() => {
+      for (const [sessionId, player] of this.state.players.entries()) {
+        const verticalVelocity = this.verticalVelocities.get(sessionId) ?? 0;
+
+        if (verticalVelocity === 0 && player.y <= groundedY) {
+          continue;
+        }
+
+        const nextVelocity = verticalVelocity - gravity;
+        const nextY = player.y + nextVelocity;
+
+        if (nextY <= groundedY) {
+          player.y = groundedY;
+          this.verticalVelocities.set(sessionId, 0);
+        } else {
+          player.y = nextY;
+          this.verticalVelocities.set(sessionId, nextVelocity);
+        }
+      }
+    }, 1000 / 60);
   }
 
   onJoin(client: Client, options: any) {
-    console.log(`Jogador ${client.sessionId} entrou na room ${this.roomId}!`);
-
     const player = new Player();
     const spawn = this.findSpawnPosition();
 
     player.x = spawn.x;
+    player.y = groundedY;
     player.z = spawn.z;
-
     player.color = "#" + Math.floor(Math.random() * 16777215).toString(16).padStart(6, "0");
 
     this.state.players.set(client.sessionId, player);
+    this.verticalVelocities.set(client.sessionId, 0);
   }
 
   onLeave(client: Client, code: number) {
-    console.log(`Jogador ${client.sessionId} saiu da room ${this.roomId}! Codigo: ${code}`);
+    this.voiceReadyClients.delete(client.sessionId);
+    this.verticalVelocities.delete(client.sessionId);
     this.state.players.delete(client.sessionId);
+    this.broadcast("voice-peer-left", { sessionId: client.sessionId }, { except: client });
   }
 
   private clampToFloor(value: number) {

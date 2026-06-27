@@ -13,6 +13,11 @@ const playerHalfSize = 0.5;
 const wallHeight = 4;
 const wallThickness = 0.4;
 const halfFloor = floorSize / 2;
+const maxVoiceDistance = 14;
+
+const rtcConfiguration: RTCConfiguration = {
+  iceServers: [{ urls: 'stun:stun.l.google.com:19302' }],
+};
 
 type MovementState = {
   forward: boolean;
@@ -20,6 +25,16 @@ type MovementState = {
   left: boolean;
   right: boolean;
 };
+
+type VoiceSignalPayload =
+  | {
+      type: 'offer' | 'answer';
+      sdp: RTCSessionDescriptionInit;
+    }
+  | {
+      type: 'ice-candidate';
+      candidate: RTCIceCandidateInit;
+    };
 
 type PlayerBodyProps = {
   isLocal: boolean;
@@ -173,7 +188,12 @@ const PlayerBody = ({ isLocal, onLocalPositionChange, player, sessionId }: Playe
 export const App = () => {
   const [players, setPlayers] = useState<Record<string, Player>>({});
   const [sessionId, setSessionId] = useState<string | null>(null);
+  const [voiceEnabled, setVoiceEnabled] = useState(false);
+  const [voiceStatus, setVoiceStatus] = useState('Voz desligada');
+  const voiceEnabledRef = useRef(false);
   const roomRef = useRef<Room<RoomState> | null>(null);
+  const sessionIdRef = useRef<string | null>(null);
+  const playersRef = useRef<Record<string, Player>>({});
   const movementRef = useRef<MovementState>({
     forward: false,
     backward: false,
@@ -181,15 +201,257 @@ export const App = () => {
     right: false,
   });
   const localPlayerPositionRef = useRef(new THREE.Vector3(0, 0.5, 0));
+  const localStreamRef = useRef<MediaStream | null>(null);
+  const peerConnectionsRef = useRef(new Map<string, RTCPeerConnection>());
+  const remoteAudioElementsRef = useRef(new Map<string, HTMLAudioElement>());
+  const voiceReadyPeersRef = useRef(new Set<string>());
+  const offeredPeersRef = useRef(new Set<string>());
+
+  const syncPlayersSnapshot = (state: RoomState) => {
+    const nextPlayers = Object.fromEntries(state.players.entries()) as Record<string, Player>;
+    playersRef.current = nextPlayers;
+    setPlayers(nextPlayers);
+  };
+
+  const removeRemoteAudioElement = (peerSessionId: string) => {
+    const audioElement = remoteAudioElementsRef.current.get(peerSessionId);
+    if (!audioElement) {
+      return;
+    }
+
+    audioElement.pause();
+    audioElement.srcObject = null;
+    audioElement.remove();
+    remoteAudioElementsRef.current.delete(peerSessionId);
+  };
+
+  const closeVoiceConnection = (peerSessionId: string) => {
+    const peerConnection = peerConnectionsRef.current.get(peerSessionId);
+    if (peerConnection) {
+      peerConnection.onicecandidate = null;
+      peerConnection.ontrack = null;
+      peerConnection.onconnectionstatechange = null;
+      peerConnection.close();
+      peerConnectionsRef.current.delete(peerSessionId);
+    }
+
+    offeredPeersRef.current.delete(peerSessionId);
+    removeRemoteAudioElement(peerSessionId);
+  };
+
+  const closeAllVoiceConnections = () => {
+    for (const peerSessionId of [...peerConnectionsRef.current.keys()]) {
+      closeVoiceConnection(peerSessionId);
+    }
+  };
+
+  const stopLocalVoice = () => {
+    localStreamRef.current?.getTracks().forEach((track) => track.stop());
+    localStreamRef.current = null;
+  };
+
+  const updateRemoteAudioVolumes = () => {
+    const localSessionId = sessionIdRef.current;
+    if (!localSessionId) {
+      return;
+    }
+
+    const localPlayer = playersRef.current[localSessionId];
+    if (!localPlayer) {
+      return;
+    }
+
+    for (const [peerSessionId, audioElement] of remoteAudioElementsRef.current.entries()) {
+      const remotePlayer = playersRef.current[peerSessionId];
+
+      if (!remotePlayer) {
+        audioElement.volume = 0;
+        continue;
+      }
+
+      const dx = remotePlayer.x - localPlayer.x;
+      const dz = remotePlayer.z - localPlayer.z;
+      const distance = Math.hypot(dx, dz);
+      const ratio = Math.max(0, 1 - distance / maxVoiceDistance);
+
+      audioElement.volume = ratio * ratio;
+    }
+  };
+
+  const sendVoiceSignal = (targetSessionId: string, payload: VoiceSignalPayload) => {
+    roomRef.current?.send('voice_signal', {
+      targetSessionId,
+      payload,
+    });
+  };
+
+  const ensureRemoteAudioElement = (peerSessionId: string) => {
+    let audioElement = remoteAudioElementsRef.current.get(peerSessionId);
+
+    if (!audioElement) {
+      audioElement = document.createElement('audio');
+      audioElement.autoplay = true;
+      audioElement.setAttribute('playsinline', 'true');
+      audioElement.style.display = 'none';
+      document.body.appendChild(audioElement);
+      remoteAudioElementsRef.current.set(peerSessionId, audioElement);
+    }
+
+    return audioElement;
+  };
+
+  const createPeerConnection = (peerSessionId: string) => {
+    const existingPeerConnection = peerConnectionsRef.current.get(peerSessionId);
+    if (existingPeerConnection) {
+      return existingPeerConnection;
+    }
+
+    const peerConnection = new RTCPeerConnection(rtcConfiguration);
+
+    if (localStreamRef.current) {
+      localStreamRef.current.getTracks().forEach((track) => {
+        peerConnection.addTrack(track, localStreamRef.current as MediaStream);
+      });
+    }
+
+    peerConnection.onicecandidate = (event) => {
+      if (!event.candidate) {
+        return;
+      }
+
+      sendVoiceSignal(peerSessionId, {
+        type: 'ice-candidate',
+        candidate: event.candidate.toJSON(),
+      });
+    };
+
+    peerConnection.ontrack = (event) => {
+      const [remoteStream] = event.streams;
+      const audioElement = ensureRemoteAudioElement(peerSessionId);
+
+      if (audioElement.srcObject !== remoteStream) {
+        audioElement.srcObject = remoteStream;
+      }
+
+      void audioElement.play().catch(() => {
+        setVoiceStatus('Clique em ativar voz para liberar o audio do navegador.');
+      });
+    };
+
+    peerConnection.onconnectionstatechange = () => {
+      if (
+        peerConnection.connectionState === 'failed' ||
+        peerConnection.connectionState === 'closed'
+      ) {
+        closeVoiceConnection(peerSessionId);
+      }
+    };
+
+    peerConnectionsRef.current.set(peerSessionId, peerConnection);
+    return peerConnection;
+  };
+
+  const ensureVoiceConnection = async (peerSessionId: string) => {
+    if (
+      !voiceEnabledRef.current ||
+      !localStreamRef.current ||
+      !sessionIdRef.current ||
+      peerSessionId === sessionIdRef.current
+    ) {
+      return;
+    }
+
+    const peerConnection = createPeerConnection(peerSessionId);
+    const shouldInitiateOffer = sessionIdRef.current.localeCompare(peerSessionId) < 0;
+
+    if (!shouldInitiateOffer || offeredPeersRef.current.has(peerSessionId)) {
+      return;
+    }
+
+    offeredPeersRef.current.add(peerSessionId);
+
+    try {
+      const offer = await peerConnection.createOffer();
+      await peerConnection.setLocalDescription(offer);
+
+      sendVoiceSignal(peerSessionId, {
+        type: 'offer',
+        sdp: offer,
+      });
+    } catch {
+      offeredPeersRef.current.delete(peerSessionId);
+      setVoiceStatus('Nao foi possivel iniciar a conexao de voz.');
+    }
+  };
+
+  const handleVoiceSignal = async (peerSessionId: string, payload: VoiceSignalPayload) => {
+    if (!voiceEnabledRef.current || !localStreamRef.current) {
+      return;
+    }
+
+    const peerConnection = createPeerConnection(peerSessionId);
+
+    if (payload.type === 'offer') {
+      await peerConnection.setRemoteDescription(payload.sdp);
+
+      const answer = await peerConnection.createAnswer();
+      await peerConnection.setLocalDescription(answer);
+
+      sendVoiceSignal(peerSessionId, {
+        type: 'answer',
+        sdp: answer,
+      });
+      return;
+    }
+
+    if (payload.type === 'answer') {
+      await peerConnection.setRemoteDescription(payload.sdp);
+      return;
+    }
+
+    if (payload.type === 'ice-candidate') {
+      await peerConnection.addIceCandidate(payload.candidate);
+    }
+  };
+
+  const toggleVoiceChat = async () => {
+    if (!roomRef.current) {
+      setVoiceStatus('Conecte na room antes de ativar a voz.');
+      return;
+    }
+
+    if (voiceEnabled) {
+      roomRef.current.send('voice_disabled');
+      closeAllVoiceConnections();
+      stopLocalVoice();
+      voiceEnabledRef.current = false;
+      setVoiceEnabled(false);
+      setVoiceStatus('Voz desligada');
+      return;
+    }
+
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({
+        audio: {
+          echoCancellation: true,
+          noiseSuppression: true,
+          autoGainControl: true,
+        },
+      });
+
+      localStreamRef.current = stream;
+      voiceEnabledRef.current = true;
+      setVoiceEnabled(true);
+      setVoiceStatus('Voz por proximidade ativada.');
+      roomRef.current.send('voice_ready');
+    } catch {
+      setVoiceStatus('Nao foi possivel acessar o microfone.');
+    }
+  };
 
   useEffect(() => {
     let room: Room<RoomState>;
     let detached = false;
-
-    const syncPlayersSnapshot = (state: RoomState) => {
-      const nextPlayers = Object.fromEntries(state.players.entries()) as Record<string, Player>;
-      setPlayers(nextPlayers);
-    };
 
     async function connect() {
       try {
@@ -200,13 +462,9 @@ export const App = () => {
           return;
         }
 
-        console.log('Conectado com sucesso!', {
-          roomId: room.roomId,
-          sessionId: room.sessionId,
-        });
-
         roomRef.current = room;
         setSessionId(room.sessionId);
+        sessionIdRef.current = room.sessionId;
 
         const $ = getStateCallbacks(room);
         syncPlayersSnapshot(room.state);
@@ -216,22 +474,65 @@ export const App = () => {
         });
 
         $(room.state).players.onAdd((player: Player, playerSessionId: string) => {
+          playersRef.current = { ...playersRef.current, [playerSessionId]: player };
           setPlayers((prev) => ({ ...prev, [playerSessionId]: player }));
 
           $(player).onChange(() => {
+            playersRef.current = { ...playersRef.current, [playerSessionId]: player };
             setPlayers((prev) => ({ ...prev, [playerSessionId]: player }));
           });
         });
 
         $(room.state).players.onRemove((_player: Player, playerSessionId: string) => {
+          closeVoiceConnection(playerSessionId);
+          voiceReadyPeersRef.current.delete(playerSessionId);
+          delete playersRef.current[playerSessionId];
+
           setPlayers((prev) => {
             const nextState = { ...prev };
             delete nextState[playerSessionId];
             return nextState;
           });
         });
-      } catch (error) {
-        console.error('Erro ao conectar:', error);
+
+        room.onMessage('voice-ready-peers', (message: { peers: string[] }) => {
+          voiceReadyPeersRef.current = new Set(message.peers);
+
+          if (voiceEnabledRef.current) {
+            message.peers.forEach((peerSessionId) => {
+              void ensureVoiceConnection(peerSessionId);
+            });
+          }
+        });
+
+        room.onMessage('voice-peer-ready', (message: { sessionId: string }) => {
+          voiceReadyPeersRef.current.add(message.sessionId);
+
+          if (voiceEnabledRef.current) {
+            void ensureVoiceConnection(message.sessionId);
+          }
+        });
+
+        room.onMessage('voice-peer-disabled', (message: { sessionId: string }) => {
+          voiceReadyPeersRef.current.delete(message.sessionId);
+          closeVoiceConnection(message.sessionId);
+        });
+
+        room.onMessage('voice-peer-left', (message: { sessionId: string }) => {
+          voiceReadyPeersRef.current.delete(message.sessionId);
+          closeVoiceConnection(message.sessionId);
+        });
+
+        room.onMessage(
+          'voice-signal',
+          (message: { fromSessionId: string; payload: VoiceSignalPayload }) => {
+            void handleVoiceSignal(message.fromSessionId, message.payload).catch(() => {
+              setVoiceStatus('Falha ao processar o sinal de voz.');
+            });
+          },
+        );
+      } catch {
+        setVoiceStatus('Nao foi possivel conectar na sala.');
       }
     }
 
@@ -240,7 +541,11 @@ export const App = () => {
     return () => {
       detached = true;
       roomRef.current = null;
+      sessionIdRef.current = null;
+      voiceEnabledRef.current = false;
       setSessionId(null);
+      closeAllVoiceConnections();
+      stopLocalVoice();
       if (room) {
         room.leave();
       }
@@ -275,10 +580,22 @@ export const App = () => {
     };
 
     const handleKeyDown = (event: KeyboardEvent) => {
+      if (event.code === 'Space') {
+        event.preventDefault();
+
+        if (!event.repeat) {
+          roomRef.current?.send('jump');
+        }
+      }
+
       updateMovement(event.code, true);
     };
 
     const handleKeyUp = (event: KeyboardEvent) => {
+      if (event.code === 'Space') {
+        event.preventDefault();
+      }
+
       updateMovement(event.code, false);
     };
 
@@ -315,8 +632,58 @@ export const App = () => {
     };
   }, []);
 
+  useEffect(() => {
+    const interval = window.setInterval(() => {
+      updateRemoteAudioVolumes();
+    }, 100);
+
+    return () => {
+      window.clearInterval(interval);
+    };
+  }, [sessionId]);
+
   return (
-    <div style={{ width: '100vw', height: '100vh', backgroundColor: '#1e1e1e' }}>
+    <div style={{ width: '100vw', height: '100vh', backgroundColor: '#1e1e1e', position: 'relative' }}>
+      <div
+        style={{
+          position: 'absolute',
+          top: 16,
+          left: 16,
+          zIndex: 10,
+          display: 'flex',
+          flexDirection: 'column',
+          gap: 8,
+          padding: 12,
+          borderRadius: 12,
+          background: 'rgba(10, 18, 28, 0.82)',
+          color: '#e7edf5',
+          fontFamily: 'system-ui, sans-serif',
+          minWidth: 220,
+          boxShadow: '0 10px 28px rgba(0, 0, 0, 0.22)',
+        }}
+      >
+        <button
+          onClick={() => {
+            void toggleVoiceChat();
+          }}
+          style={{
+            border: 'none',
+            borderRadius: 10,
+            padding: '10px 12px',
+            fontWeight: 700,
+            cursor: 'pointer',
+            background: voiceEnabled ? '#d96b6b' : '#67d1bf',
+            color: '#12202b',
+          }}
+        >
+          {voiceEnabled ? 'Desativar Voz' : 'Ativar Voz'}
+        </button>
+        <span style={{ fontSize: 13, lineHeight: 1.4 }}>{voiceStatus}</span>
+        <span style={{ fontSize: 12, opacity: 0.78 }}>
+          O volume dos outros jogadores cai conforme a distancia entre os cubos.
+        </span>
+      </div>
+
       <Canvas camera={{ position: [0, 6, 8] }} shadows>
         <ambientLight intensity={0.85} color="#dbe7f2" />
         <hemisphereLight intensity={0.55} color="#d7ecff" groundColor="#1d232b" />

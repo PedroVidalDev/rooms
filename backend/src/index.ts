@@ -8,12 +8,10 @@ const port = 8080;
 const httpServer = http.createServer();
 
 const gameServer = new Server({
-  transport: new WebSocketTransport({ 
-    server: httpServer 
-  })
+  transport: new WebSocketTransport({
+    server: httpServer,
+  }),
 });
 
 gameServer.define("english_room", EnglishRoom as any);
 gameServer.listen(port);
-console.log(`🚀 Backend rodando e escutando na porta: ${port}`);
-console.log(`🔗 URL de conexão WebSocket: ws://localhost:${port}`);
