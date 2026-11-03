@@ -1,5 +1,8 @@
-import { ThreeRoom } from "./pages/Room";
+import { AppRoutes } from "./Routes";
 
 export const App = () => {
-  <ThreeRoom />
+  return (
+    <AppRoutes />
+  );
 };
+

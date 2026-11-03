@@ -140,6 +140,10 @@ export class EnglishRoom extends Room<{ state: RoomState }> {
     this.broadcast("voice-peer-left", { sessionId: client.sessionId }, { except: client });
   }
 
+  onDispose(): void | Promise<any> {
+    console.log("Disposing EnglishRoom...");
+  }
+
   private clampToFloor(value: number) {
     const limit = floorHalfSize - playerHalfSize;
     return Math.max(-limit, Math.min(limit, value));
