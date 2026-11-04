@@ -1,6 +1,6 @@
 import { inject, injectable } from "tsyringe";
 import { User } from "../entities/user.entity.js";
-import { UserModel } from "../../generated/prisma/models.js";
+import { UserModel, UserWhereInput } from "../../generated/prisma/models.js";
 import { PrismaClient } from "../../generated/prisma/client.js";
 
 @injectable()
@@ -22,5 +22,17 @@ export class UserRepository {
         });
 
         return User.fromModel(created);
+    }
+
+    public async findBy(where: UserWhereInput): Promise<User | null> {
+        const found: UserModel | null = await this.prisma.user.findFirst({
+            where,
+        });
+
+        if (!found) {
+            return null;
+        }
+
+        return User.fromModel(found);
     }
 }

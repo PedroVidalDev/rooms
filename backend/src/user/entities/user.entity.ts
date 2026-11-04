@@ -1,4 +1,5 @@
 import { UserModel } from "../../generated/prisma/models.js";
+import { UserDtoType } from "../dtos/user.dto.js";
 
 export class User {
     private id: number | null;
@@ -57,6 +58,13 @@ export class User {
 
     public getIsVerified(): boolean {
         return this.isVerified;
+    }
+
+    public toDto(): UserDtoType {
+        return {
+            name: this.name,
+            email: this.email,
+        };
     }
 
     public static fromModel(model: UserModel): User {
