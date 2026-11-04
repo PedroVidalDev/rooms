@@ -1,3 +1,5 @@
+import { UserModel } from "../../generated/prisma/models.js";
+
 export class User {
     private id: number | null;
     private name: string;
@@ -55,5 +57,19 @@ export class User {
 
     public getIsVerified(): boolean {
         return this.isVerified;
+    }
+
+    public static fromModel(model: UserModel): User {
+        return new User(
+            model.id,
+            model.name,
+            model.email,
+            model.password,
+            model.createdAt,
+            model.updatedAt,
+            model.deletedAt,
+            model.isActive,
+            model.isVerified
+        );
     }
 }
