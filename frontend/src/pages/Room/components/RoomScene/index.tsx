@@ -7,7 +7,13 @@ import { PlayerBody } from "../PlayerBody";
 import type { RoomSceneProps } from "./types";
 
 export const RoomScene = (props: RoomSceneProps) => {
-  const { players, sessionId, localPlayerPositionRef } = props;
+  const {
+    jumpRequestedRef,
+    localPlayerPositionRef,
+    movementRef,
+    players,
+    sessionId,
+  } = props;
 
   return (
     <Canvas camera={{ position: [0, 6, 8] }} shadows>
@@ -31,7 +37,7 @@ export const RoomScene = (props: RoomSceneProps) => {
       />
       <FollowCamera target={localPlayerPositionRef} />
 
-      <Physics gravity={[0, 0, 0]} colliders={false} timeStep="vary" interpolate>
+      <Physics gravity={[0, -20, 0]} colliders={false} timeStep="vary" interpolate>
         <Arena />
 
         {Object.entries(players).map(([playerSessionId, player]) => (
@@ -40,6 +46,8 @@ export const RoomScene = (props: RoomSceneProps) => {
             sessionId={playerSessionId}
             player={player}
             isLocal={playerSessionId === sessionId}
+            movementRef={movementRef}
+            jumpRequestedRef={jumpRequestedRef}
             onLocalPositionChange={(position) => {
               if (playerSessionId === sessionId) {
                 localPlayerPositionRef.current.copy(position);

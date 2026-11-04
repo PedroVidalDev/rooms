@@ -8,6 +8,7 @@ type CreateRoomOptions = {
 
 type MoveMessage = {
   x: number;
+  y?: number;
   z: number;
 };
 
@@ -16,19 +17,15 @@ type VoiceSignalMessage = {
   payload: unknown;
 };
 
-const floorHalfSize = 10;
+const spawnHalfRange = 8;
 const playerHalfSize = 0.5;
-const movementSpeed = 0.2;
 const groundedY = 0.5;
-const jumpVelocity = 0.34;
-const gravity = 0.02;
 
 export class EnglishRoom extends Room<{ state: RoomState }> {
   private static activeRoomNames = new Set<string>();
   private normalizedRoomName: string = "";
 
   private voiceReadyClients = new Set<string>();
-  private verticalVelocities = new Map<string, number>();
 
   onCreate(options: CreateRoomOptions = {}) {
     const rawName = options.roomName?.trim() ?? "";
@@ -63,32 +60,16 @@ export class EnglishRoom extends Room<{ state: RoomState }> {
         return;
       }
 
-      const nextX = Number.isFinite(message.x) ? message.x : 0;
-      const nextZ = Number.isFinite(message.z) ? message.z : 0;
-
-      const desiredX = this.clampToFloor(player.x + Math.max(-1, Math.min(1, nextX)) * movementSpeed);
-      const desiredZ = this.clampToFloor(player.z + Math.max(-1, Math.min(1, nextZ)) * movementSpeed);
-
-      if (this.canOccupy(client.sessionId, desiredX, player.z)) {
-        player.x = desiredX;
+      if (Number.isFinite(message.x)) {
+        player.x = message.x;
       }
 
-      if (this.canOccupy(client.sessionId, player.x, desiredZ)) {
-        player.z = desiredZ;
-      }
-    });
-
-    this.onMessage("jump", (client) => {
-      const player = this.state.players.get(client.sessionId);
-      if (!player) {
-        return;
+      if (Number.isFinite(message.y)) {
+        player.y = Math.max(groundedY, message.y as number);
       }
 
-      const verticalVelocity = this.verticalVelocities.get(client.sessionId) ?? 0;
-      const isGrounded = player.y <= groundedY + 0.001 && verticalVelocity === 0;
-
-      if (isGrounded) {
-        this.verticalVelocities.set(client.sessionId, jumpVelocity);
+      if (Number.isFinite(message.z)) {
+        player.z = message.z;
       }
     });
 
@@ -128,27 +109,6 @@ export class EnglishRoom extends Room<{ state: RoomState }> {
         payload: message.payload,
       });
     });
-
-    this.setSimulationInterval(() => {
-      for (const [sessionId, player] of this.state.players.entries()) {
-        const verticalVelocity = this.verticalVelocities.get(sessionId) ?? 0;
-
-        if (verticalVelocity === 0 && player.y <= groundedY) {
-          continue;
-        }
-
-        const nextVelocity = verticalVelocity - gravity;
-        const nextY = player.y + nextVelocity;
-
-        if (nextY <= groundedY) {
-          player.y = groundedY;
-          this.verticalVelocities.set(sessionId, 0);
-        } else {
-          player.y = nextY;
-          this.verticalVelocities.set(sessionId, nextVelocity);
-        }
-      }
-    }, 1000 / 60);
   }
 
   onJoin(client: Client, options: any) {
@@ -161,12 +121,10 @@ export class EnglishRoom extends Room<{ state: RoomState }> {
     player.color = "#" + Math.floor(Math.random() * 16777215).toString(16).padStart(6, "0");
 
     this.state.players.set(client.sessionId, player);
-    this.verticalVelocities.set(client.sessionId, 0);
   }
 
   onLeave(client: Client, code: number) {
     this.voiceReadyClients.delete(client.sessionId);
-    this.verticalVelocities.delete(client.sessionId);
     this.state.players.delete(client.sessionId);
     this.broadcast("voice-peer-left", { sessionId: client.sessionId }, { except: client });
   }
@@ -178,17 +136,8 @@ export class EnglishRoom extends Room<{ state: RoomState }> {
     console.log("room", this.roomId, "disposing...");
   }
 
-  private clampToFloor(value: number) {
-    const limit = floorHalfSize - playerHalfSize;
-    return Math.max(-limit, Math.min(limit, value));
-  }
-
-  private canOccupy(sessionId: string, x: number, z: number) {
-    for (const [otherSessionId, otherPlayer] of this.state.players.entries()) {
-      if (otherSessionId === sessionId) {
-        continue;
-      }
-
+  private canSpawnAt(x: number, z: number) {
+    for (const otherPlayer of this.state.players.values()) {
       const overlapX = Math.abs(otherPlayer.x - x) < playerHalfSize * 2;
       const overlapZ = Math.abs(otherPlayer.z - z) < playerHalfSize * 2;
 
@@ -202,10 +151,10 @@ export class EnglishRoom extends Room<{ state: RoomState }> {
 
   private findSpawnPosition() {
     for (let attempt = 0; attempt < 20; attempt += 1) {
-      const x = this.clampToFloor((Math.random() - 0.5) * floorHalfSize * 2);
-      const z = this.clampToFloor((Math.random() - 0.5) * floorHalfSize * 2);
+      const x = (Math.random() - 0.5) * spawnHalfRange * 2;
+      const z = (Math.random() - 0.5) * spawnHalfRange * 2;
 
-      if (this.canOccupy("", x, z)) {
+      if (this.canSpawnAt(x, z)) {
         return { x, z };
       }
     }

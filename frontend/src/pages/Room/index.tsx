@@ -7,9 +7,9 @@ import { RoomHud } from './components/RoomHud';
 import { RoomScene } from './components/RoomScene';
 import { VoiceChatControls } from './components/VoiceChatControls';
 import {
-  computeMovementVector,
   extractPlayersSnapshot,
   formatRoomConnectionError,
+  hasPositionChanged,
 } from './helpers';
 import { useHotkeys, type MovementState } from './hooks/useHotkeys';
 import type { CreateRoomLocationState, ThreeRoomProps } from './types';
@@ -45,7 +45,10 @@ export const ThreeRoom = (props: ThreeRoomProps = {}) => {
     left: false,
     right: false,
   });
+  const jumpRequestedRef = useRef(false);
+  const hasLocalSpawnedRef = useRef(false);
   const localPlayerPositionRef = useRef(new THREE.Vector3(0, 0.5, 0));
+  const lastSentPositionRef = useRef(new THREE.Vector3(NaN, NaN, NaN));
 
   const handleLeaveRoom = () => {
     if (onLeave) {
@@ -58,7 +61,7 @@ export const ThreeRoom = (props: ThreeRoomProps = {}) => {
   useHotkeys({
     movementRef,
     onJump: () => {
-      roomRef.current?.send('jump');
+      jumpRequestedRef.current = true;
     },
   });
 
@@ -136,10 +139,18 @@ export const ThreeRoom = (props: ThreeRoomProps = {}) => {
         });
 
         stateCallbacks(room.state).players.onAdd((player: Player, playerSessionId: string) => {
+          if (playerSessionId === room.sessionId) {
+            localPlayerPositionRef.current.set(player.x, player.y, player.z);
+            lastSentPositionRef.current.set(player.x, player.y, player.z);
+            hasLocalSpawnedRef.current = true;
+          }
+
           setPlayers((prev) => ({ ...prev, [playerSessionId]: player }));
 
           stateCallbacks(player).onChange(() => {
-            setPlayers((prev) => ({ ...prev, [playerSessionId]: player }));
+            if (playerSessionId !== room.sessionId) {
+              setPlayers((prev) => ({ ...prev, [playerSessionId]: player }));
+            }
           });
         });
 
@@ -165,6 +176,7 @@ export const ThreeRoom = (props: ThreeRoomProps = {}) => {
 
     return () => {
       detached = true;
+      hasLocalSpawnedRef.current = false;
       roomRef.current = null;
       setRoomInstance(null);
       setSessionId(null);
@@ -177,17 +189,21 @@ export const ThreeRoom = (props: ThreeRoomProps = {}) => {
   useEffect(() => {
     const interval = window.setInterval(() => {
       const room = roomRef.current;
-      if (!room) {
+      if (!room || !hasLocalSpawnedRef.current) {
         return;
       }
 
-      const { x, z } = computeMovementVector(movementRef.current);
-
-      if (x === 0 && z === 0) {
+      const currentPos = localPlayerPositionRef.current;
+      if (!hasPositionChanged(currentPos, lastSentPositionRef.current)) {
         return;
       }
 
-      room.send('move', { x, z });
+      lastSentPositionRef.current.copy(currentPos);
+      room.send('move', {
+        x: currentPos.x,
+        y: currentPos.y,
+        z: currentPos.z,
+      });
     }, 50);
 
     return () => {
@@ -211,6 +227,8 @@ export const ThreeRoom = (props: ThreeRoomProps = {}) => {
         players={players}
         sessionId={sessionId}
         localPlayerPositionRef={localPlayerPositionRef}
+        movementRef={movementRef}
+        jumpRequestedRef={jumpRequestedRef}
       />
     </div>
   );

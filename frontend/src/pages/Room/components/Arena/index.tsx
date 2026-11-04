@@ -1,21 +1,36 @@
 import { CuboidCollider, RigidBody } from "@react-three/rapier";
-import { floorSize, halfFloor, wallHeight, wallThickness } from "./consts";
+import { columnHeight, columnSize, floorSize, halfFloor, wallHeight, wallThickness } from "./consts";
 
 export const Arena = () => {
   const wallY = wallHeight / 2;
   const columnOffset = halfFloor - 0.8;
+  const columnHalfSize = columnSize / 2;
+  const columnHalfHeight = columnHeight / 2;
+  const columnPositions: [number, number, number][] = [
+    [-columnOffset, columnHalfHeight, -columnOffset],
+    [columnOffset, columnHalfHeight, -columnOffset],
+    [-columnOffset, columnHalfHeight, columnOffset],
+    [columnOffset, columnHalfHeight, columnOffset],
+  ];
 
   return (
     <>
       <color attach="background" args={['#101820']} />
       <fog attach="fog" args={['#101820', 12, 28]} />
 
-      <RigidBody type="fixed" colliders={false} position={[0, -0.05, 0]}>
-        <CuboidCollider args={[halfFloor, 0.05, halfFloor]} />
+      <RigidBody type="fixed" colliders={false} position={[0, 0, 0]} friction={0}>
+        <CuboidCollider args={[halfFloor, 0.05, halfFloor]} position={[0, -0.05, 0]} />
         <CuboidCollider args={[halfFloor, wallHeight / 2, wallThickness / 2]} position={[0, wallY, -halfFloor]} />
         <CuboidCollider args={[halfFloor, wallHeight / 2, wallThickness / 2]} position={[0, wallY, halfFloor]} />
         <CuboidCollider args={[wallThickness / 2, wallHeight / 2, halfFloor]} position={[-halfFloor, wallY, 0]} />
         <CuboidCollider args={[wallThickness / 2, wallHeight / 2, halfFloor]} position={[halfFloor, wallY, 0]} />
+        {columnPositions.map((position, index) => (
+          <CuboidCollider
+            key={`column-collider-${index}`}
+            args={[columnHalfSize, columnHalfHeight, columnHalfSize]}
+            position={position}
+          />
+        ))}
       </RigidBody>
 
       <mesh rotation={[-Math.PI / 2, 0, 0]} receiveShadow>
@@ -59,14 +74,9 @@ export const Arena = () => {
         <meshStandardMaterial color="#4d5966" roughness={0.88} />
       </mesh>
 
-      {[
-        [-columnOffset, 1.6, -columnOffset],
-        [columnOffset, 1.6, -columnOffset],
-        [-columnOffset, 1.6, columnOffset],
-        [columnOffset, 1.6, columnOffset],
-      ].map((position, index) => (
-        <mesh key={index} position={position as [number, number, number]} castShadow receiveShadow>
-          <boxGeometry args={[0.55, 3.2, 0.55]} />
+      {columnPositions.map((position, index) => (
+        <mesh key={index} position={position} castShadow receiveShadow>
+          <boxGeometry args={[columnSize, columnHeight, columnSize]} />
           <meshStandardMaterial color="#6f7b86" metalness={0.12} roughness={0.76} />
         </mesh>
       ))}

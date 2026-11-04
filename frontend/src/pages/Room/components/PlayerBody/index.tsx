@@ -1,14 +1,27 @@
 import { useRef, useState } from "react";
 import { useFrame } from "@react-three/fiber";
-import { CuboidCollider, RigidBody, type RapierRigidBody } from "@react-three/rapier";
+import {
+  CuboidCollider,
+  RigidBody,
+  useRapier,
+  type RapierRigidBody,
+} from "@react-three/rapier";
 import { MathUtils, Vector3 } from "three";
-import { playerHalfSize } from "./consts";
-import { getPlayerColor, getPlayerSmoothing } from "./helpers";
+import { playerHalfSize, playerJumpVelocity } from "./consts";
+import { computeHorizontalVelocity, getPlayerColor, getPlayerSmoothing } from "./helpers";
 import type { PlayerBodyProps } from "./types";
 
 export const PlayerBody = (props: PlayerBodyProps) => {
-  const { player, isLocal, onLocalPositionChange, sessionId } = props;
+  const {
+    player,
+    isLocal,
+    jumpRequestedRef,
+    movementRef,
+    onLocalPositionChange,
+    sessionId,
+  } = props;
 
+  const { world, rapier } = useRapier();
   const bodyRef = useRef<RapierRigidBody>(null);
   const nextPositionRef = useRef(new Vector3(player.x, player.y, player.z));
   const [initialPosition] = useState<[number, number, number]>(() => [
@@ -25,7 +38,45 @@ export const PlayerBody = (props: PlayerBodyProps) => {
     }
 
     const current = body.translation();
-    const smoothing = getPlayerSmoothing(isLocal);
+
+    if (isLocal) {
+      const { vx, vz } = computeHorizontalVelocity(movementRef?.current);
+      const currentVel = body.linvel();
+      let nextVy = currentVel.y;
+
+      if (jumpRequestedRef?.current) {
+        jumpRequestedRef.current = false;
+
+        const groundShape = new rapier.Cuboid(
+          playerHalfSize * 0.9,
+          0.04,
+          playerHalfSize * 0.9,
+        );
+        const groundHit = world.intersectionWithShape(
+          { x: current.x, y: current.y - playerHalfSize - 0.03, z: current.z },
+          { x: 0, y: 0, z: 0, w: 1 },
+          groundShape,
+          undefined,
+          undefined,
+          undefined,
+          body,
+        );
+
+        if (groundHit !== null && Math.abs(currentVel.y) <= 0.5) {
+          nextVy = playerJumpVelocity;
+        }
+      }
+
+      body.setLinvel({ x: vx, y: nextVy, z: vz }, true);
+
+      nextPositionRef.current.set(current.x, current.y, current.z);
+      if (onLocalPositionChange) {
+        onLocalPositionChange(nextPositionRef.current);
+      }
+      return;
+    }
+
+    const smoothing = getPlayerSmoothing(false);
 
     nextPositionRef.current.set(
       MathUtils.lerp(current.x, player.x, smoothing),
@@ -34,22 +85,22 @@ export const PlayerBody = (props: PlayerBodyProps) => {
     );
 
     body.setNextKinematicTranslation(nextPositionRef.current);
-
-    if (isLocal && onLocalPositionChange) {
-      onLocalPositionChange(nextPositionRef.current);
-    }
   });
 
   return (
     <RigidBody
       ref={bodyRef}
-      type="kinematicPosition"
+      type={isLocal ? "dynamic" : "kinematicPosition"}
       colliders={false}
       position={initialPosition}
       enabledRotations={[false, false, false]}
-      enabledTranslations={[true, false, true]}
+      enabledTranslations={[true, true, true]}
+      ccd={isLocal}
     >
-      <CuboidCollider args={[playerHalfSize, playerHalfSize, playerHalfSize]} />
+      <CuboidCollider
+        args={[playerHalfSize, playerHalfSize, playerHalfSize]}
+        friction={0}
+      />
       <mesh castShadow receiveShadow userData={{ sessionId }}>
         <boxGeometry args={[1, 1, 1]} />
         <meshStandardMaterial color={color} />
@@ -57,3 +108,4 @@ export const PlayerBody = (props: PlayerBodyProps) => {
     </RigidBody>
   );
 };
+
