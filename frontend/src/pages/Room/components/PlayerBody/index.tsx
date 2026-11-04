@@ -8,7 +8,7 @@ import {
 } from "@react-three/rapier";
 import { MathUtils, Vector3 } from "three";
 import { playerHalfSize, playerJumpVelocity } from "./consts";
-import { computeHorizontalVelocity, getPlayerColor, getPlayerSmoothing } from "./helpers";
+import { computeHorizontalVelocity, getPlayerSmoothing } from "./helpers";
 import type { PlayerBodyProps } from "./types";
 
 export const PlayerBody = (props: PlayerBodyProps) => {
@@ -29,7 +29,7 @@ export const PlayerBody = (props: PlayerBodyProps) => {
     player.y,
     player.z,
   ]);
-  const color = getPlayerColor(isLocal, player.color);
+  const color = player.color;
 
   useFrame(() => {
     const body = bodyRef.current;
