@@ -8,6 +8,7 @@ import { WebSocketTransport } from "@colyseus/ws-transport";
 import { EnglishRoom } from "./colyseus/EnglishRoom.js";
 import express from "express";
 import userRoutes from "./user/routers/user.router.js";
+import authRoutes from "./auth/routers/auth.router.js"; 
 import bodyParser from "body-parser";
 
 const port = process.env.PORT ? parseInt(process.env.PORT) : 8080;
@@ -15,6 +16,7 @@ const port = process.env.PORT ? parseInt(process.env.PORT) : 8080;
 const app = express();
 app.use(bodyParser.json());
 app.use("/auth", userRoutes);
+app.use("/auth", authRoutes);
 
 app.get("/api/health", (_req, res) => {
   res.json({ ok: true });
