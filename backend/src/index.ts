@@ -1,9 +1,12 @@
 import http from "http";
-import { Server } from "@colyseus/core";
+import { LobbyRoom, Server } from "@colyseus/core";
 import { WebSocketTransport } from "@colyseus/ws-transport";
 import { EnglishRoom } from "./colyseus/EnglishRoom.js";
+import { configDotenv } from "dotenv";
 
-const port = 8080;
+configDotenv();
+
+const port = process.env.PORT ? parseInt(process.env.PORT) : 8080;
 
 const httpServer = http.createServer();
 
@@ -13,5 +16,9 @@ const gameServer = new Server({
   }),
 });
 
-gameServer.define("english_room", EnglishRoom as any);
-gameServer.listen(port);
+gameServer.define("lobby", LobbyRoom);
+gameServer.define("english_room", EnglishRoom as any).enableRealtimeListing();
+
+gameServer.listen(port).then(() => {
+  console.log(`Colyseus server is listening on ws://localhost:${port}`);
+});

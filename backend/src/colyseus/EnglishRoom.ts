@@ -1,5 +1,10 @@
-import { Room, type Client } from "@colyseus/core";
+import { Room, Client, ServerError } from "@colyseus/core";
 import { Player, RoomState } from "../entities/RoomState.js";
+
+type CreateRoomOptions = {
+  roomName?: string;
+  maxClients?: number;
+}
 
 type MoveMessage = {
   x: number;
@@ -19,11 +24,37 @@ const jumpVelocity = 0.34;
 const gravity = 0.02;
 
 export class EnglishRoom extends Room<{ state: RoomState }> {
+  private static activeRoomNames = new Set<string>();
+  private normalizedRoomName: string = "";
+
   private voiceReadyClients = new Set<string>();
   private verticalVelocities = new Map<string, number>();
 
-  onCreate(options: any) {
-    this.setState(new RoomState());
+  onCreate(options: CreateRoomOptions = {}) {
+    const rawName = options.roomName?.trim() ?? "";
+    if (!rawName) {
+      throw new ServerError(400, "Room name is required.");
+    }
+
+    const normalizedName = rawName.toLowerCase();
+    if (EnglishRoom.activeRoomNames.has(normalizedName)) {
+      throw new ServerError(400, "Room name is already in use.");
+    }
+
+    const maxClients = options.maxClients ?? 8;
+    if (maxClients < 1 || maxClients > 8) {
+      throw new ServerError(400, "Max clients must be between 1 and 8.");
+    }
+
+    this.normalizedRoomName = normalizedName;
+    this.maxClients = maxClients;
+    EnglishRoom.activeRoomNames.add(normalizedName);
+
+    this.state = new RoomState();
+    this.state.roomName = rawName;
+    this.state.maxClients = maxClients;
+
+    this.setMetadata({ roomName: rawName });
 
     this.onMessage("move", (client, message: MoveMessage) => {
       const player = this.state.players.get(client.sessionId);
@@ -140,8 +171,11 @@ export class EnglishRoom extends Room<{ state: RoomState }> {
     this.broadcast("voice-peer-left", { sessionId: client.sessionId }, { except: client });
   }
 
-  onDispose(): void | Promise<any> {
-    console.log("Disposing EnglishRoom...");
+  onDispose() {
+    if (this.normalizedRoomName) {
+      EnglishRoom.activeRoomNames.delete(this.normalizedRoomName);
+    }
+    console.log("room", this.roomId, "disposing...");
   }
 
   private clampToFloor(value: number) {

@@ -9,4 +9,6 @@ export class Player extends Schema {
 
 export class RoomState extends Schema {
   @type({ map: Player }) players = new MapSchema<Player>();
+  @type("string") roomName: string = "";
+  @type("number") maxClients: number = 8;
 }

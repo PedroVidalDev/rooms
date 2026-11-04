@@ -1,7 +1,8 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { type Player } from '../../../../colyseus/RoomState';
 import type { VoiceChatControlsProps, VoiceSignalPayload } from './types';
-import { maxVoiceDistance, rtcConfiguration } from './consts';
+import { rtcConfiguration } from './consts';
+import { computeProximityVolume, shouldInitiatePeerOffer } from './helpers';
 
 export const VoiceChatControls = (props: VoiceChatControlsProps) => {
   const { room, players, sessionId } = props;
@@ -79,18 +80,7 @@ export const VoiceChatControls = (props: VoiceChatControlsProps) => {
 
     for (const [peerSessionId, audioElement] of remoteAudioElementsRef.current.entries()) {
       const remotePlayer = playersRef.current[peerSessionId];
-
-      if (!remotePlayer) {
-        audioElement.volume = 0;
-        continue;
-      }
-
-      const dx = remotePlayer.x - localPlayer.x;
-      const dz = remotePlayer.z - localPlayer.z;
-      const distance = Math.hypot(dx, dz);
-      const ratio = Math.max(0, 1 - distance / maxVoiceDistance);
-
-      audioElement.volume = ratio * ratio;
+      audioElement.volume = computeProximityVolume(localPlayer, remotePlayer);
     }
   }, []);
 
@@ -185,7 +175,7 @@ export const VoiceChatControls = (props: VoiceChatControlsProps) => {
       }
 
       const peerConnection = createPeerConnection(peerSessionId);
-      const shouldInitiateOffer = sessionIdRef.current.localeCompare(peerSessionId) < 0;
+      const shouldInitiateOffer = shouldInitiatePeerOffer(sessionIdRef.current, peerSessionId);
 
       if (!shouldInitiateOffer || offeredPeersRef.current.has(peerSessionId)) {
         return;

@@ -16,8 +16,12 @@ defineTypes(Player, {
 
 export class RoomState extends Schema {
   players = new MapSchema<Player>();
+  roomName = "";
+  maxClients = 8;
 }
 
 defineTypes(RoomState, {
   players: { map: Player },
+  roomName: "string",
+  maxClients: "number",
 });

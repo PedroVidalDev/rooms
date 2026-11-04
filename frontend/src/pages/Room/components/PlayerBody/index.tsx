@@ -1,17 +1,22 @@
-import { useRef } from "react";
-import type { PlayerBodyProps } from "./types";
+import { useRef, useState } from "react";
+import { useFrame } from "@react-three/fiber";
 import { CuboidCollider, RigidBody, type RapierRigidBody } from "@react-three/rapier";
 import { MathUtils, Vector3 } from "three";
-import { useFrame } from "@react-three/fiber";
 import { playerHalfSize } from "./consts";
+import { getPlayerColor, getPlayerSmoothing } from "./helpers";
+import type { PlayerBodyProps } from "./types";
 
 export const PlayerBody = (props: PlayerBodyProps) => {
-    const { player, isLocal, onLocalPositionChange, sessionId } = props;
+  const { player, isLocal, onLocalPositionChange, sessionId } = props;
 
   const bodyRef = useRef<RapierRigidBody>(null);
   const nextPositionRef = useRef(new Vector3(player.x, player.y, player.z));
-  const initialPositionRef = useRef<[number, number, number]>([player.x, player.y, player.z]);
-  const color = isLocal ? '#f4d35e' : player.color;
+  const [initialPosition] = useState<[number, number, number]>(() => [
+    player.x,
+    player.y,
+    player.z,
+  ]);
+  const color = getPlayerColor(isLocal, player.color);
 
   useFrame(() => {
     const body = bodyRef.current;
@@ -20,7 +25,7 @@ export const PlayerBody = (props: PlayerBodyProps) => {
     }
 
     const current = body.translation();
-    const smoothing = isLocal ? 0.24 : 0.18;
+    const smoothing = getPlayerSmoothing(isLocal);
 
     nextPositionRef.current.set(
       MathUtils.lerp(current.x, player.x, smoothing),
@@ -40,7 +45,7 @@ export const PlayerBody = (props: PlayerBodyProps) => {
       ref={bodyRef}
       type="kinematicPosition"
       colliders={false}
-      position={initialPositionRef.current}
+      position={initialPosition}
       enabledRotations={[false, false, false]}
       enabledTranslations={[true, false, true]}
     >
