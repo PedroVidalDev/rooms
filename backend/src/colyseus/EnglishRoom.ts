@@ -1,5 +1,5 @@
 import { Room, Client, ServerError } from "@colyseus/core";
-import { Player, RoomState } from "../entities/RoomState.js";
+import { Player, RoomState } from "./RoomState.js";
 
 type CreateRoomOptions = {
   roomName?: string;
