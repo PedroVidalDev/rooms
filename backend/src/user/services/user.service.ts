@@ -1,6 +1,7 @@
 import { inject, injectable } from "tsyringe";
 import { UserRepository } from "../repositories/user.repository.js";
 import { User } from "../entities/user.entity.js";
+import { UserCreateDtoType } from "../dtos/userCreate.dto.js";
 
 @injectable()
 export class UserService {
@@ -10,12 +11,12 @@ export class UserService {
         private readonly userRepository: UserRepository
     ) {}
 
-    public async register() {
+    public async register(data: UserCreateDtoType) {
         const user = new User(
-            1,
-            "John Doe",
-            "john.doe@example.com",
-            "password123",
+            null,
+            data.name,
+            data.email,
+            data.password,
             new Date(),
             new Date(),
             null,

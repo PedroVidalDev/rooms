@@ -1,5 +1,5 @@
 export class User {
-    private id: number;
+    private id: number | null;
     private name: string;
     private email: string;
     private password: string;
@@ -9,7 +9,7 @@ export class User {
     private isActive: boolean;
     private isVerified: boolean;
 
-    constructor(id: number, name: string, email: string, password: string, createdAt: Date, updatedAt: Date, deletedAt: Date | null, isActive: boolean, isVerified: boolean) {
+    constructor(id: number | null, name: string, email: string, password: string, createdAt: Date, updatedAt: Date, deletedAt: Date | null, isActive: boolean, isVerified: boolean) {
         this.id = id;
         this.name = name;
         this.email = email;
@@ -21,7 +21,7 @@ export class User {
         this.isVerified = isVerified;
     }
 
-    public getId(): number {
+    public getId(): number | null {
         return this.id;
     }
 

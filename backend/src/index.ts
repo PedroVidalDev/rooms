@@ -7,14 +7,15 @@ import { EnglishRoom } from "./colyseus/EnglishRoom.js";
 import { configDotenv } from "dotenv";
 import express from "express";
 import userRoutes from "./user/routers/user.router.js";
+import bodyParser from "body-parser";
 
 configDotenv();
 
 const port = process.env.PORT ? parseInt(process.env.PORT) : 8080;
 
 const app = express();
-app.use(express.json());
-app.use(userRoutes);
+app.use(bodyParser.json());
+app.use("/auth", userRoutes);
 
 app.get("/api/health", (_req, res) => {
   res.json({ ok: true });
