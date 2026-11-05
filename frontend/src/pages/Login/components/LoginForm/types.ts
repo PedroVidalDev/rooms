@@ -1,12 +1,16 @@
 import type { LoginPayload } from "../../types";
 
+export type LoginFieldErrors = {
+  email?: string;
+  password?: string;
+};
+
 export type LoginFormProps = {
   initialEmail?: string;
   isSubmitting?: boolean;
   onSubmit: (payload: LoginPayload) => void;
-  onValidationError?: (message: string) => void;
 };
 
 export type LoginValidationResult =
   | { valid: true; payload: LoginPayload }
-  | { valid: false; error: string };
+  | { valid: false; errors: LoginFieldErrors };

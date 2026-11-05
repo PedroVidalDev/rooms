@@ -1,40 +1,29 @@
-import { useState, type CSSProperties } from "react";
+import { useState } from "react";
 import { Button } from "../../../../components/Button";
+import { TextInput } from "../../../../components/TextInput";
 import { validateLoginForm } from "./helpers";
-import type { LoginFormProps } from "./types";
-
-const LABEL_STYLE: CSSProperties = {
-  fontSize: 11,
-  fontWeight: 700,
-  letterSpacing: "0.08em",
-  textTransform: "uppercase",
-  color: "#e7edf5",
-  opacity: 0.75,
-};
-
-const INPUT_STYLE: CSSProperties = {
-  width: "100%",
-  borderRadius: 10,
-  border: "1px solid #44505c",
-  background: "#1d232b",
-  color: "#e7edf5",
-  padding: "11px 12px",
-  fontSize: 14,
-  fontFamily: "system-ui, sans-serif",
-  outline: "none",
-  boxSizing: "border-box",
-};
+import type { LoginFieldErrors, LoginFormProps } from "./types";
 
 export const LoginForm = (props: LoginFormProps) => {
-  const {
-    initialEmail = "",
-    isSubmitting = false,
-    onSubmit,
-    onValidationError,
-  } = props;
+  const { initialEmail = "", isSubmitting = false, onSubmit } = props;
 
   const [email, setEmail] = useState(initialEmail);
   const [password, setPassword] = useState("");
+  const [fieldErrors, setFieldErrors] = useState<LoginFieldErrors>({});
+
+  const handleEmailChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    setEmail(e.target.value);
+    if (fieldErrors.email) {
+      setFieldErrors((prev) => ({ ...prev, email: undefined }));
+    }
+  };
+
+  const handlePasswordChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    setPassword(e.target.value);
+    if (fieldErrors.password) {
+      setFieldErrors((prev) => ({ ...prev, password: undefined }));
+    }
+  };
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -44,46 +33,43 @@ export const LoginForm = (props: LoginFormProps) => {
 
     const validation = validateLoginForm(email, password);
     if (!validation.valid) {
-      onValidationError?.(validation.error);
+      setFieldErrors(validation.errors);
       return;
     }
 
+    setFieldErrors({});
     onSubmit(validation.payload);
   };
 
   return (
-    <form onSubmit={handleSubmit} style={{ display: "flex", flexDirection: "column", gap: 14 }}>
-      <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
-        <label htmlFor="login-email" style={LABEL_STYLE}>
-          E-mail
-        </label>
-        <input
-          id="login-email"
-          type="email"
-          autoComplete="email"
-          placeholder="seu@email.com"
-          value={email}
-          disabled={isSubmitting}
-          onChange={(e) => setEmail(e.target.value)}
-          style={INPUT_STYLE}
-        />
-      </div>
+    <form
+      noValidate
+      onSubmit={handleSubmit}
+      style={{ display: "flex", flexDirection: "column", gap: 14 }}
+    >
+      <TextInput
+        id="login-email"
+        label="E-mail"
+        type="email"
+        autoComplete="email"
+        placeholder="seu@email.com"
+        value={email}
+        disabled={isSubmitting}
+        error={fieldErrors.email}
+        onChange={handleEmailChange}
+      />
 
-      <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
-        <label htmlFor="login-password" style={LABEL_STYLE}>
-          Senha
-        </label>
-        <input
-          id="login-password"
-          type="password"
-          autoComplete="current-password"
-          placeholder="Digite sua senha (mín. 6 caracteres)"
-          value={password}
-          disabled={isSubmitting}
-          onChange={(e) => setPassword(e.target.value)}
-          style={INPUT_STYLE}
-        />
-      </div>
+      <TextInput
+        id="login-password"
+        label="Senha"
+        type="password"
+        autoComplete="current-password"
+        placeholder="Digite sua senha (mín. 6 caracteres)"
+        value={password}
+        disabled={isSubmitting}
+        error={fieldErrors.password}
+        onChange={handlePasswordChange}
+      />
 
       <Button
         type="submit"

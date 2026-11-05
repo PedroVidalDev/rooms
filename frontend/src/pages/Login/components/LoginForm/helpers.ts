@@ -1,4 +1,4 @@
-import type { LoginValidationResult } from "./types";
+import type { LoginFieldErrors, LoginValidationResult } from "./types";
 
 const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
@@ -8,32 +8,24 @@ export const validateLoginForm = (
 ): LoginValidationResult => {
   const email = rawEmail.trim();
   const password = rawPassword;
+  const errors: LoginFieldErrors = {};
 
   if (!email) {
-    return {
-      valid: false,
-      error: "Por favor, informe seu endereço de e-mail.",
-    };
-  }
-
-  if (!EMAIL_REGEX.test(email)) {
-    return {
-      valid: false,
-      error: "Por favor, informe um endereço de e-mail válido.",
-    };
+    errors.email = "Por favor, informe seu endereço de e-mail.";
+  } else if (!EMAIL_REGEX.test(email)) {
+    errors.email = "Por favor, informe um endereço de e-mail válido.";
   }
 
   if (!password) {
-    return {
-      valid: false,
-      error: "Por favor, informe sua senha.",
-    };
+    errors.password = "Por favor, informe sua senha.";
+  } else if (password.length < 6) {
+    errors.password = "A senha deve ter pelo menos 6 caracteres.";
   }
 
-  if (password.length < 6) {
+  if (errors.email || errors.password) {
     return {
       valid: false,
-      error: "A senha deve ter pelo menos 6 caracteres.",
+      errors,
     };
   }
 

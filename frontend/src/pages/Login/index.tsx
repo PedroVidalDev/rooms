@@ -42,11 +42,6 @@ export const Login = () => {
     }
   };
 
-  const handleValidationError = (message: string) => {
-    setSuccessMessage(null);
-    setError(message);
-  };
-
   return (
     <div
       style={{
@@ -141,7 +136,6 @@ export const Login = () => {
               initialEmail={initialLocationState.registeredEmail}
               isSubmitting={isSubmitting}
               onSubmit={handleLogin}
-              onValidationError={handleValidationError}
             />
 
             <SectionDivider label="ou ainda não tem conta?" />

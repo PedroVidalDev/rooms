@@ -1,36 +1,37 @@
-import { useState, type CSSProperties } from "react";
+import { useState } from "react";
 import { Button } from "../../../../components/Button";
+import { TextInput } from "../../../../components/TextInput";
 import { validateRegisterForm } from "./helpers";
-import type { RegisterFormProps } from "./types";
-
-const LABEL_STYLE: CSSProperties = {
-  fontSize: 11,
-  fontWeight: 700,
-  letterSpacing: "0.08em",
-  textTransform: "uppercase",
-  color: "#e7edf5",
-  opacity: 0.75,
-};
-
-const INPUT_STYLE: CSSProperties = {
-  width: "100%",
-  borderRadius: 10,
-  border: "1px solid #44505c",
-  background: "#1d232b",
-  color: "#e7edf5",
-  padding: "11px 12px",
-  fontSize: 14,
-  fontFamily: "system-ui, sans-serif",
-  outline: "none",
-  boxSizing: "border-box",
-};
+import type { RegisterFieldErrors, RegisterFormProps } from "./types";
 
 export const RegisterForm = (props: RegisterFormProps) => {
-  const { isSubmitting = false, onSubmit, onValidationError } = props;
+  const { isSubmitting = false, onSubmit } = props;
 
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+  const [fieldErrors, setFieldErrors] = useState<RegisterFieldErrors>({});
+
+  const handleNameChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    setName(e.target.value);
+    if (fieldErrors.name) {
+      setFieldErrors((prev) => ({ ...prev, name: undefined }));
+    }
+  };
+
+  const handleEmailChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    setEmail(e.target.value);
+    if (fieldErrors.email) {
+      setFieldErrors((prev) => ({ ...prev, email: undefined }));
+    }
+  };
+
+  const handlePasswordChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    setPassword(e.target.value);
+    if (fieldErrors.password) {
+      setFieldErrors((prev) => ({ ...prev, password: undefined }));
+    }
+  };
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -40,62 +41,55 @@ export const RegisterForm = (props: RegisterFormProps) => {
 
     const validation = validateRegisterForm(name, email, password);
     if (!validation.valid) {
-      onValidationError?.(validation.error);
+      setFieldErrors(validation.errors);
       return;
     }
 
+    setFieldErrors({});
     onSubmit(validation.payload);
   };
 
   return (
-    <form onSubmit={handleSubmit} style={{ display: "flex", flexDirection: "column", gap: 14 }}>
-      <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
-        <label htmlFor="register-name" style={LABEL_STYLE}>
-          Nome
-        </label>
-        <input
-          id="register-name"
-          type="text"
-          autoComplete="name"
-          placeholder="Como deseja ser chamado"
-          value={name}
-          disabled={isSubmitting}
-          onChange={(e) => setName(e.target.value)}
-          style={INPUT_STYLE}
-        />
-      </div>
+    <form
+      noValidate
+      onSubmit={handleSubmit}
+      style={{ display: "flex", flexDirection: "column", gap: 14 }}
+    >
+      <TextInput
+        id="register-name"
+        label="Nome"
+        type="text"
+        autoComplete="name"
+        placeholder="Como deseja ser chamado"
+        value={name}
+        disabled={isSubmitting}
+        error={fieldErrors.name}
+        onChange={handleNameChange}
+      />
 
-      <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
-        <label htmlFor="register-email" style={LABEL_STYLE}>
-          E-mail
-        </label>
-        <input
-          id="register-email"
-          type="email"
-          autoComplete="email"
-          placeholder="seu@email.com"
-          value={email}
-          disabled={isSubmitting}
-          onChange={(e) => setEmail(e.target.value)}
-          style={INPUT_STYLE}
-        />
-      </div>
+      <TextInput
+        id="register-email"
+        label="E-mail"
+        type="email"
+        autoComplete="email"
+        placeholder="seu@email.com"
+        value={email}
+        disabled={isSubmitting}
+        error={fieldErrors.email}
+        onChange={handleEmailChange}
+      />
 
-      <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
-        <label htmlFor="register-password" style={LABEL_STYLE}>
-          Senha
-        </label>
-        <input
-          id="register-password"
-          type="password"
-          autoComplete="new-password"
-          placeholder="Crie uma senha (mín. 6 caracteres)"
-          value={password}
-          disabled={isSubmitting}
-          onChange={(e) => setPassword(e.target.value)}
-          style={INPUT_STYLE}
-        />
-      </div>
+      <TextInput
+        id="register-password"
+        label="Senha"
+        type="password"
+        autoComplete="new-password"
+        placeholder="Crie uma senha (mín. 6 caracteres)"
+        value={password}
+        disabled={isSubmitting}
+        error={fieldErrors.password}
+        onChange={handlePasswordChange}
+      />
 
       <Button
         type="submit"

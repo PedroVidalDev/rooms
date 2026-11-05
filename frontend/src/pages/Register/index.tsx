@@ -35,10 +35,6 @@ export const Register = () => {
     }
   };
 
-  const handleValidationError = (message: string) => {
-    setError(message);
-  };
-
   return (
     <div
       style={{
@@ -127,7 +123,6 @@ export const Register = () => {
             <RegisterForm
               isSubmitting={isSubmitting}
               onSubmit={handleRegister}
-              onValidationError={handleValidationError}
             />
 
             <SectionDivider label="ou já possui uma conta?" />

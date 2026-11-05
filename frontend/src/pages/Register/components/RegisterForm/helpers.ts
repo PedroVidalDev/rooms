@@ -1,4 +1,4 @@
-import type { RegisterValidationResult } from "./types";
+import type { RegisterFieldErrors, RegisterValidationResult } from "./types";
 
 const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
@@ -10,39 +10,28 @@ export const validateRegisterForm = (
   const name = rawName.trim();
   const email = rawEmail.trim();
   const password = rawPassword;
+  const errors: RegisterFieldErrors = {};
 
   if (!name) {
-    return {
-      valid: false,
-      error: "Por favor, informe seu nome.",
-    };
+    errors.name = "Por favor, informe seu nome.";
   }
 
   if (!email) {
-    return {
-      valid: false,
-      error: "Por favor, informe seu endereço de e-mail.",
-    };
-  }
-
-  if (!EMAIL_REGEX.test(email)) {
-    return {
-      valid: false,
-      error: "Por favor, informe um endereço de e-mail válido.",
-    };
+    errors.email = "Por favor, informe seu endereço de e-mail.";
+  } else if (!EMAIL_REGEX.test(email)) {
+    errors.email = "Por favor, informe um endereço de e-mail válido.";
   }
 
   if (!password) {
-    return {
-      valid: false,
-      error: "Por favor, informe uma senha.",
-    };
+    errors.password = "Por favor, informe uma senha.";
+  } else if (password.length < 6) {
+    errors.password = "A senha deve ter pelo menos 6 caracteres.";
   }
 
-  if (password.length < 6) {
+  if (errors.name || errors.email || errors.password) {
     return {
       valid: false,
-      error: "A senha deve ter pelo menos 6 caracteres.",
+      errors,
     };
   }
 
