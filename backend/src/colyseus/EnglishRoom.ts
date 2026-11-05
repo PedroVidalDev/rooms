@@ -1,5 +1,6 @@
 import { Room, Client, ServerError } from "@colyseus/core";
 import { Player, RoomState } from "./RoomState.js";
+import { verifyRoomToken } from "../middlewares/authMiddleware.js";
 
 type CreateRoomOptions = {
   roomName?: string;
@@ -26,6 +27,10 @@ export class EnglishRoom extends Room<{ state: RoomState }> {
   private normalizedRoomName: string = "";
 
   private voiceReadyClients = new Set<string>();
+
+  static async onAuth(token: string) {
+    return verifyRoomToken(token);
+  }
 
   onCreate(options: CreateRoomOptions = {}) {
     const rawName = options.roomName?.trim() ?? "";

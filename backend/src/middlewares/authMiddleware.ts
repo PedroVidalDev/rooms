@@ -1,6 +1,24 @@
 import { NextFunction, Response, Request } from "express";
 import jwt from "jsonwebtoken";
 import { UserJwtPayload } from "../types/express.js";
+import { ServerError } from "@colyseus/core";
+
+export const verifyRoomToken = (token?: string): UserJwtPayload => {
+  if (!token) {
+    throw new ServerError(401, "Unauthorized. No token provided.");
+  }
+
+  const jwtSecret = process.env.JWT_SECRET;
+  if (!jwtSecret) {
+    throw new ServerError(500, "JWT_SECRET is not defined");
+  }
+
+  try {
+    return jwt.verify(token, jwtSecret) as UserJwtPayload;
+  } catch {
+    throw new ServerError(401, "Forbidden - Invalid or expired token");
+  }
+};
 
 export const authenticateToken = (req: Request, res: Response, next: NextFunction) => {
   const authHeader = req.headers['authorization'];

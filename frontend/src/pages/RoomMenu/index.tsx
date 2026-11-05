@@ -1,4 +1,4 @@
-import { Client, Room } from "@colyseus/sdk";
+import { Room } from "@colyseus/sdk";
 import { useEffect, useState } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
 import { AvailableRooms } from "./components/AvailableRooms";
@@ -9,8 +9,7 @@ import { MenuHeader } from "./components/MenuHeader";
 import { SectionDivider } from "./components/SectionDivider";
 import { extractLocationError, removeAvailableRoom, upsertAvailableRoom } from "./helpers";
 import type { LobbyRoomEntry } from "./types";
-
-const client = new Client(import.meta.env.VITE_WEBSOCKET_SERVER ?? "ws://localhost:8080");
+import { client } from "../../colyseus/client";
 
 export const RoomMenu = () => {
   const navigate = useNavigate();
@@ -41,6 +40,7 @@ export const RoomMenu = () => {
 
     const connectLobby = async () => {
       try {
+        client.auth.token = localStorage.getItem("rooms@token") ?? "";
         const room = await client.joinOrCreate("lobby");
         if (isCancelled) {
           room.leave();

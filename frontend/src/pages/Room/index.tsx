@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import { useLocation, useNavigate, useParams } from 'react-router-dom';
-import { Client, getStateCallbacks, Room } from '@colyseus/sdk';
+import { getStateCallbacks, Room } from '@colyseus/sdk';
 import * as THREE from 'three';
 import { RoomState, type Player } from '../../colyseus/RoomState';
 import { RoomHud } from './components/RoomHud';
@@ -13,8 +13,7 @@ import {
 } from './helpers';
 import { useHotkeys, type MovementState } from './hooks/useHotkeys';
 import type { CreateRoomLocationState, ThreeRoomProps } from './types';
-
-const client = new Client(import.meta.env.VITE_WEBSOCKET_SERVER ?? 'ws://localhost:8080');
+import { client } from '../../colyseus/client';
 
 export const ThreeRoom = (props: ThreeRoomProps = {}) => {
   const { mode, roomId: propRoomId, onLeave } = props;
@@ -87,6 +86,7 @@ export const ThreeRoom = (props: ThreeRoomProps = {}) => {
         navigate: redirect,
       } = initialConnectRef.current;
 
+      client.auth.token = localStorage.getItem("rooms@token") ?? "";
       try {
         if (createNewRoom || !initialRoomId) {
           if (!createState?.roomName) {
