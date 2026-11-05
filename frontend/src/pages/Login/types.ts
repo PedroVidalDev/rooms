@@ -3,7 +3,7 @@ export type LoginPayload = {
   password: string;
 };
 
-export type LoginResponse = string | { token?: string };
+export type LoginResponse = { token: string };
 
 export type LoginLocationState = {
   error?: string;

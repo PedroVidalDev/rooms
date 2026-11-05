@@ -12,18 +12,6 @@ export const extractLoginLocationState = (state: unknown): LoginLocationState =>
   };
 };
 
-export const extractAuthToken = (data: LoginResponse): string | null => {
-  if (typeof data === "string" && data.trim()) {
-    return data.trim();
-  }
-
-  if (data && typeof data === "object" && typeof data.token === "string" && data.token.trim()) {
-    return data.token.trim();
-  }
-
-  return null;
-};
-
 export const saveAuthToken = (token: string): void => {
   localStorage.setItem(AUTH_TOKEN_STORAGE_KEY, token);
   client.auth.token = token;
@@ -53,7 +41,8 @@ export const loginUser = async (payload: LoginPayload): Promise<string> => {
     },
   });
 
-  const token = extractAuthToken(response.data as LoginResponse);
+  const res = response.data as LoginResponse;
+  const token = res.token;
   if (!token) {
     throw new Error("Token de autenticação não recebido.");
   }

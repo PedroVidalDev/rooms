@@ -14,6 +14,7 @@ import {
 import { useHotkeys, type MovementState } from './hooks/useHotkeys';
 import type { CreateRoomLocationState, ThreeRoomProps } from './types';
 import { client } from '../../colyseus/client';
+import { AUTH_TOKEN_STORAGE_KEY } from '../Login/helpers';
 
 export const ThreeRoom = (props: ThreeRoomProps = {}) => {
   const { mode, roomId: propRoomId, onLeave } = props;
@@ -86,7 +87,7 @@ export const ThreeRoom = (props: ThreeRoomProps = {}) => {
         navigate: redirect,
       } = initialConnectRef.current;
 
-      client.auth.token = localStorage.getItem("rooms@token") ?? "";
+      client.auth.token = localStorage.getItem(AUTH_TOKEN_STORAGE_KEY) ?? "";
       try {
         if (createNewRoom || !initialRoomId) {
           if (!createState?.roomName) {

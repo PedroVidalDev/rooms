@@ -10,6 +10,7 @@ import { SectionDivider } from "./components/SectionDivider";
 import { extractLocationError, removeAvailableRoom, upsertAvailableRoom } from "./helpers";
 import type { LobbyRoomEntry } from "./types";
 import { client } from "../../colyseus/client";
+import { AUTH_TOKEN_STORAGE_KEY } from "../Login/helpers";
 
 export const RoomMenu = () => {
   const navigate = useNavigate();
@@ -40,7 +41,7 @@ export const RoomMenu = () => {
 
     const connectLobby = async () => {
       try {
-        client.auth.token = localStorage.getItem("rooms@token") ?? "";
+        client.auth.token = localStorage.getItem(AUTH_TOKEN_STORAGE_KEY) ?? "";
         const room = await client.joinOrCreate("lobby");
         if (isCancelled) {
           room.leave();
