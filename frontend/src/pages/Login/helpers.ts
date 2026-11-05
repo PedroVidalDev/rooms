@@ -3,34 +3,6 @@ import type { LoginLocationState, LoginPayload, LoginResponse } from "./types";
 
 export const AUTH_TOKEN_STORAGE_KEY = "rooms@token";
 
-const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-
-export const validateLoginEmail = (rawEmail: string): string | null => {
-  const email = rawEmail.trim();
-
-  if (!email) {
-    return "Por favor, informe seu endereço de e-mail.";
-  }
-
-  if (!EMAIL_REGEX.test(email)) {
-    return "Por favor, informe um endereço de e-mail válido.";
-  }
-
-  return null;
-};
-
-export const validateLoginPassword = (rawPassword: string): string | null => {
-  if (!rawPassword) {
-    return "Por favor, informe sua senha.";
-  }
-
-  if (rawPassword.length < 6) {
-    return "A senha deve ter pelo menos 6 caracteres.";
-  }
-
-  return null;
-};
-
 export const extractLoginLocationState = (state: unknown): LoginLocationState => {
   const parsed = (state as LoginLocationState | null) ?? {};
   return {

@@ -1,5 +1,3 @@
-export type LoginFieldName = "email" | "password";
-
 export type LoginPayload = {
   email: string;
   password: string;

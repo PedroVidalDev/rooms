@@ -3,12 +3,11 @@ import { useNavigate } from "react-router-dom";
 import { AuthBanner } from "../../components/AuthBanner";
 import { Button } from "../../components/Button";
 import { ErrorBanner } from "../../components/ErrorBanner";
-import { Form } from "../../components/Form";
 import { PageHeader } from "../../components/PageHeader";
 import { SectionDivider } from "../../components/SectionDivider";
-import { REGISTER_BANNER_HIGHLIGHTS, REGISTER_FORM_FIELDS } from "./consts";
+import { RegisterForm } from "./components/RegisterForm";
 import { formatRegisterError, registerUser } from "./helpers";
-import type { RegisterFieldName, RegisterPayload } from "./types";
+import type { RegisterPayload } from "./types";
 
 export const Register = () => {
   const navigate = useNavigate();
@@ -16,16 +15,11 @@ export const Register = () => {
   const [error, setError] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
 
-  const handleRegister = async (values: Record<RegisterFieldName, string>) => {
+  const handleRegister = async (payload: RegisterPayload) => {
     setError(null);
     setIsSubmitting(true);
 
     try {
-      const payload: RegisterPayload = {
-        name: values.name,
-        email: values.email,
-        password: values.password,
-      };
       const createdUser = await registerUser(payload);
       navigate("/login", {
         replace: true,
@@ -98,7 +92,6 @@ export const Register = () => {
           statusTag="Novo Jogador"
           title="Comece sua jornada nas arenas de conversação."
           subtitle="Crie sua conta gratuitamente para entrar em salas ativas, conversar por voz e criar suas próprias arenas 3D."
-          highlights={REGISTER_BANNER_HIGHLIGHTS}
         />
 
         <div
@@ -131,12 +124,7 @@ export const Register = () => {
               onDismiss={() => setError(null)}
             />
 
-            <Form
-              idPrefix="register"
-              fields={REGISTER_FORM_FIELDS}
-              submitLabel="Criar Conta"
-              submittingLabel="Criando conta..."
-              submitVariant="primary"
+            <RegisterForm
               isSubmitting={isSubmitting}
               onSubmit={handleRegister}
               onValidationError={handleValidationError}

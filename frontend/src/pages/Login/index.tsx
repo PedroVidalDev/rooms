@@ -3,18 +3,17 @@ import { useLocation, useNavigate } from "react-router-dom";
 import { AuthBanner } from "../../components/AuthBanner";
 import { Button } from "../../components/Button";
 import { ErrorBanner } from "../../components/ErrorBanner";
-import { Form } from "../../components/Form";
 import { PageHeader } from "../../components/PageHeader";
 import { SectionDivider } from "../../components/SectionDivider";
 import { SuccessBanner } from "../../components/SuccessBanner";
-import { LOGIN_BANNER_HIGHLIGHTS, LOGIN_FORM_FIELDS } from "./consts";
+import { LoginForm } from "./components/LoginForm";
 import {
   extractLoginLocationState,
   formatLoginError,
   loginUser,
   saveAuthToken,
 } from "./helpers";
-import type { LoginFieldName, LoginPayload } from "./types";
+import type { LoginPayload } from "./types";
 
 export const Login = () => {
   const navigate = useNavigate();
@@ -27,16 +26,12 @@ export const Login = () => {
   );
   const [isSubmitting, setIsSubmitting] = useState(false);
 
-  const handleLogin = async (values: Record<LoginFieldName, string>) => {
+  const handleLogin = async (payload: LoginPayload) => {
     setError(null);
     setSuccessMessage(null);
     setIsSubmitting(true);
 
     try {
-      const payload: LoginPayload = {
-        email: values.email,
-        password: values.password,
-      };
       const token = await loginUser(payload);
       saveAuthToken(token);
       navigate("/", { replace: true });
@@ -105,7 +100,6 @@ export const Login = () => {
           statusTag="Lobby Online"
           title="Pratique inglês em salas 3D em tempo real."
           subtitle="Entre no lobby, conecte-se com outros jogadores por voz e evolua sua conversação em um ambiente interativo."
-          highlights={LOGIN_BANNER_HIGHLIGHTS}
         />
 
         <div
@@ -143,13 +137,8 @@ export const Login = () => {
               onDismiss={() => setError(null)}
             />
 
-            <Form
-              idPrefix="login"
-              fields={LOGIN_FORM_FIELDS}
-              initialValues={{ email: initialLocationState.registeredEmail ?? "" }}
-              submitLabel="Entrar na Arena"
-              submittingLabel="Entrando..."
-              submitVariant="primary"
+            <LoginForm
+              initialEmail={initialLocationState.registeredEmail}
               isSubmitting={isSubmitting}
               onSubmit={handleLogin}
               onValidationError={handleValidationError}

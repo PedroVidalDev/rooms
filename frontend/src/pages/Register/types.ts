@@ -1,5 +1,3 @@
-export type RegisterFieldName = "name" | "email" | "password";
-
 export type RegisterPayload = {
   name: string;
   email: string;
