@@ -10,12 +10,13 @@ import { LoginForm } from "./components/LoginForm";
 import {
   extractLoginLocationState,
   formatLoginError,
-  loginUser,
-  saveAuthToken,
 } from "./helpers";
 import type { LoginPayload } from "./types";
+import { useAuthContext } from "../../contexts/AuthContext";
 
 export const Login = () => {
+  const { login } = useAuthContext(); 
+
   const navigate = useNavigate();
   const location = useLocation();
   const initialLocationState = extractLoginLocationState(location.state);
@@ -32,8 +33,7 @@ export const Login = () => {
     setIsSubmitting(true);
 
     try {
-      const token = await loginUser(payload);
-      saveAuthToken(token);
+      await login(payload.email, payload.password);
       navigate("/", { replace: true });
     } catch (err) {
       setError(formatLoginError(err));

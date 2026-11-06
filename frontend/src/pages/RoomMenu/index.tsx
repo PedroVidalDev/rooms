@@ -10,7 +10,7 @@ import { SectionDivider } from "./components/SectionDivider";
 import { extractLocationError, removeAvailableRoom, upsertAvailableRoom } from "./helpers";
 import type { LobbyRoomEntry } from "./types";
 import { client } from "../../colyseus/client";
-import { AUTH_TOKEN_STORAGE_KEY } from "../Login/helpers";
+import { AUTH_TOKEN_STORAGE_KEY } from "../../storage/authToken";
 
 export const RoomMenu = () => {
   const navigate = useNavigate();

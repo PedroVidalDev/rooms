@@ -1,7 +1,4 @@
-import { client } from "../../colyseus/client";
-import type { LoginLocationState, LoginPayload, LoginResponse } from "./types";
-
-export const AUTH_TOKEN_STORAGE_KEY = "rooms@token";
+import type { LoginLocationState } from "./types";
 
 export const extractLoginLocationState = (state: unknown): LoginLocationState => {
   const parsed = (state as LoginLocationState | null) ?? {};
@@ -10,11 +7,6 @@ export const extractLoginLocationState = (state: unknown): LoginLocationState =>
     successMessage: parsed.successMessage,
     registeredEmail: parsed.registeredEmail,
   };
-};
-
-export const saveAuthToken = (token: string): void => {
-  localStorage.setItem(AUTH_TOKEN_STORAGE_KEY, token);
-  client.auth.token = token;
 };
 
 export const formatLoginError = (err: unknown): string => {
@@ -31,21 +23,4 @@ export const formatLoginError = (err: unknown): string => {
   }
 
   return "Não foi possível entrar na sua conta no momento. Tente novamente.";
-};
-
-export const loginUser = async (payload: LoginPayload): Promise<string> => {
-  const response = await client.http.post("/auth/login", {
-    body: {
-      email: payload.email.trim(),
-      password: payload.password,
-    },
-  });
-
-  const res = response.data as LoginResponse;
-  const token = res.token;
-  if (!token) {
-    throw new Error("Token de autenticação não recebido.");
-  }
-
-  return token;
 };

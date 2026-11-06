@@ -3,6 +3,7 @@ import { Login } from "./pages/Login"
 import { Register } from "./pages/Register"
 import { RoomMenu } from "./pages/RoomMenu"
 import { ThreeRoom } from "./pages/Room"
+import { AuthGuard } from "./guards/AuthGuard"
 
 export const AppRoutes = () => {
     return (
@@ -10,9 +11,9 @@ export const AppRoutes = () => {
             <Routes>
                 <Route path="/login" element={<Login />} />
                 <Route path="/register" element={<Register />} />
-                <Route path="/" element={<RoomMenu />} />
-                <Route path="/room" element={<Navigate to="/room/new" replace />} />
-                <Route path="/room/:roomId" element={<ThreeRoom />} />
+                <Route path="/" element={<AuthGuard><RoomMenu /></AuthGuard>} />
+                <Route path="/room" element={<AuthGuard><Navigate to="/room/new" replace /></AuthGuard>} />
+                <Route path="/room/:roomId" element={<AuthGuard><ThreeRoom /></AuthGuard>} />
             </Routes>
         </BrowserRouter>
     )
