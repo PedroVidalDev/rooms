@@ -14,6 +14,7 @@ export const AppRoutes = () => {
                 <Route path="/" element={<AuthGuard><RoomMenu /></AuthGuard>} />
                 <Route path="/room" element={<AuthGuard><Navigate to="/room/new" replace /></AuthGuard>} />
                 <Route path="/room/:roomId" element={<AuthGuard><ThreeRoom /></AuthGuard>} />
+                <Route path="*" element={<Navigate  to="/login" replace />} />
             </Routes>
         </BrowserRouter>
     )

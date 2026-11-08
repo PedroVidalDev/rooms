@@ -5,7 +5,17 @@ import { client } from "../../colyseus/client";
 import { decodeAuthToken, getAuthToken, removeAuthToken, saveAuthToken } from "../../storage/authToken";
 
 export const AuthProvider = ({ children }: AuthProviderProps) => {
-    const [authUser, setAuthUser] = useState<UserData | null>(null);
+    const [authUser, setAuthUser] = useState<UserData | null>(() => {
+        const token = getAuthToken();
+        if (!token) return null;
+
+        client.auth.token = token;
+        const decodedInfo = decodeAuthToken(token);
+        return {
+            email: decodedInfo.email,
+            name: decodedInfo.name,
+        };
+    });
 
     const login = async (email: string, password: string) => {
         const response = await client.http.post("/auth/login", {
