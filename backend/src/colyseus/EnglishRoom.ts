@@ -124,6 +124,7 @@ export class EnglishRoom extends Room<{ state: RoomState }> {
     player.y = groundedY;
     player.z = spawn.z;
     player.color = "#" + Math.floor(Math.random() * 16777215).toString(16).padStart(6, "0");
+    player.name = client.auth?.name || client.auth?.email || "";
 
     this.state.players.set(client.sessionId, player);
   }

@@ -5,6 +5,7 @@ export class Player extends Schema {
   y = 0.5;
   z = 0;
   color = "#ffffff";
+  name = "";
 }
 
 defineTypes(Player, {
@@ -12,6 +13,7 @@ defineTypes(Player, {
   y: "number",
   z: "number",
   color: "string",
+  name: "string",
 });
 
 export class RoomState extends Schema {

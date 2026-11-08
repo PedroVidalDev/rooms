@@ -61,7 +61,7 @@ export const RoomHud = (props: RoomHudProps) => {
           color: "#12202b",
         }}
       >
-        Leave Room
+        Sair da sala
       </button>
     </div>
   );

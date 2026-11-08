@@ -5,6 +5,7 @@ export class Player extends Schema {
   @type("number") y: number = 0.5;
   @type("number") z: number = 0;
   @type("string") color: string = "#ffffff";
+  @type("string") name: string = "";
 }
 
 export class RoomState extends Schema {

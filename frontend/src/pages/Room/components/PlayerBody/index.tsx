@@ -1,4 +1,5 @@
 import { useRef, useState } from "react";
+import { Html } from "@react-three/drei";
 import { useFrame } from "@react-three/fiber";
 import {
   CuboidCollider,
@@ -7,7 +8,11 @@ import {
   type RapierRigidBody,
 } from "@react-three/rapier";
 import { MathUtils, Vector3 } from "three";
-import { playerHalfSize, playerJumpVelocity } from "./consts";
+import {
+  playerHalfSize,
+  playerJumpVelocity,
+  playerNameOffsetY,
+} from "./consts";
 import { computeHorizontalVelocity, getPlayerSmoothing } from "./helpers";
 import type { PlayerBodyProps } from "./types";
 
@@ -30,6 +35,7 @@ export const PlayerBody = (props: PlayerBodyProps) => {
     player.z,
   ]);
   const color = player.color;
+  const playerName = player.name.trim();
 
   useFrame(() => {
     const body = bodyRef.current;
@@ -105,6 +111,32 @@ export const PlayerBody = (props: PlayerBodyProps) => {
         <boxGeometry args={[1, 1, 1]} />
         <meshStandardMaterial color={color} />
       </mesh>
+      {!isLocal && playerName && (
+        <Html
+          position={[0, playerNameOffsetY, 0]}
+          center
+          zIndexRange={[5, 0]}
+          style={{ pointerEvents: "none" }}
+        >
+          <div
+            style={{
+              padding: "3px 8px",
+              borderRadius: 6,
+              background: "rgba(10, 18, 28, 0.82)",
+              border: "1px solid rgba(231, 237, 245, 0.16)",
+              color: "#e7edf5",
+              fontSize: 12,
+              fontWeight: 700,
+              fontFamily: "system-ui, sans-serif",
+              whiteSpace: "nowrap",
+              userSelect: "none",
+              boxShadow: "0 4px 12px rgba(0, 0, 0, 0.28)",
+            }}
+          >
+            {playerName}
+          </div>
+        </Html>
+      )}
     </RigidBody>
   );
 };
