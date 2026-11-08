@@ -1,6 +1,6 @@
 import { inject, injectable } from "tsyringe";
 import { User } from "../entities/user.entity.js";
-import { UserModel, UserWhereInput } from "../../generated/prisma/models.js";
+import { UserModel, UserUpdateInput, UserWhereInput } from "../../generated/prisma/models.js";
 import { PrismaClient } from "../../generated/prisma/client.js";
 
 @injectable()
@@ -34,5 +34,14 @@ export class UserRepository {
         }
 
         return User.fromModel(found);
+    }
+
+    public async update(id: number, data: UserUpdateInput): Promise<User> {
+        const updated: UserModel = await this.prisma.user.update({
+            where: { id },
+            data,
+        });
+
+        return User.fromModel(updated);
     }
 }

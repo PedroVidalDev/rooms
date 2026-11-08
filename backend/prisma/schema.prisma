@@ -27,3 +27,14 @@ model User {
 
   @@map("tb_users")
 }
+
+model UserVerificationCode {
+  id         Int      @id @default(autoincrement())
+  userId     Int
+  hashedCode String   @unique
+  used       Boolean  @default(false)
+  expiresAt  DateTime
+  createdAt  DateTime @default(now())
+
+  @@map("tb_user_verification_codes")
+}
