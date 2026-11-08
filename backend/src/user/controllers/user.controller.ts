@@ -17,4 +17,23 @@ export class UserController {
             res.status(500).json({ message: "Error registering user" });
         }
     }
+
+    public async update(req: Request, res: Response): Promise<void> {
+        try {
+            const authenticatedUserId = Number(req.user?.sub);
+            const targetUserId = Number(req.params.id);
+
+            const result = await this.userService.update(
+                authenticatedUserId,
+                targetUserId,
+                req.body
+            );
+
+            res.status(200).json(result);
+        } catch (error) {
+            const message = error instanceof Error ? error.message : "Error updating user";
+            const status = message.startsWith("Forbidden") ? 403 : 400;
+            res.status(status).json({ message });
+        }
+    }
 }
