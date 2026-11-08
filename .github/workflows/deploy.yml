@@ -1,0 +1,110 @@
+name: Build and Deploy to Oracle VM
+
+on:
+  push:
+    branches:
+      - main
+  workflow_dispatch:
+
+jobs:
+  build-and-deploy:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: "npm"
+          cache-dependency-path: |
+            backend/package-lock.json
+            frontend/package-lock.json
+
+      - name: Create Backend .env file
+        working-directory: ./backend
+        run: |
+          cat << 'EOF' > .env
+          PORT=${{ secrets.PORT || vars.PORT || '8080' }}
+          POSTGRES_USER=${{ secrets.POSTGRES_USER }}
+          POSTGRES_PASSWORD=${{ secrets.POSTGRES_PASSWORD }}
+          POSTGRES_DB=${{ secrets.POSTGRES_DB }}
+          POSTGRES_PORT=${{ secrets.POSTGRES_PORT || vars.POSTGRES_PORT || '5432' }}
+          DATABASE_URL=${{ secrets.DATABASE_URL }}
+          REDIS_HOST=${{ secrets.REDIS_HOST || vars.REDIS_HOST || 'localhost' }}
+          REDIS_PORT=${{ secrets.REDIS_PORT || vars.REDIS_PORT || '6379' }}
+          SMTP_USER=${{ secrets.SMTP_USER }}
+          SMTP_PASS=${{ secrets.SMTP_PASS }}
+          MAIL_FROM=${{ secrets.MAIL_FROM }}
+          JWT_SECRET=${{ secrets.JWT_SECRET }}
+          EOF
+
+      - name: Install and Build Backend
+        working-directory: ./backend
+        run: |
+          npm ci
+          npm run build
+
+      - name: Install and Build Frontend
+        working-directory: ./frontend
+        env:
+          VITE_WEBSOCKET_SERVER: ${{ secrets.VITE_WEBSOCKET_SERVER || vars.VITE_WEBSOCKET_SERVER }}
+        run: |
+          npm ci
+          npm run build
+
+      - name: Package build artifacts
+        run: |
+          mkdir -p deploy_pkg/backend deploy_pkg/frontend
+          cp -r backend/dist backend/prisma backend/prisma.config.ts backend/docker-compose.yml backend/package.json backend/package-lock.json backend/.env deploy_pkg/backend/
+          cp -r frontend/dist deploy_pkg/frontend/
+          tar -czf rooms-build.tar.gz -C deploy_pkg .
+
+      - name: Setup SSH Key
+        env:
+          SSH_PRIVATE_KEY: ${{ secrets.ORACLE_SSH_PRIVATE_KEY }}
+          SSH_HOST: ${{ secrets.ORACLE_HOST }}
+          SSH_PORT: ${{ secrets.ORACLE_PORT || '22' }}
+        run: |
+          mkdir -p ~/.ssh
+          chmod 700 ~/.ssh
+          echo "$SSH_PRIVATE_KEY" > ~/.ssh/id_rsa
+          chmod 600 ~/.ssh/id_rsa
+          ssh-keyscan -p "$SSH_PORT" -H "$SSH_HOST" >> ~/.ssh/known_hosts
+
+      - name: Transfer artifacts to Oracle VM
+        env:
+          SSH_USER: ${{ secrets.ORACLE_USER }}
+          SSH_HOST: ${{ secrets.ORACLE_HOST }}
+          SSH_PORT: ${{ secrets.ORACLE_PORT || '22' }}
+        run: |
+          ssh -p "$SSH_PORT" -i ~/.ssh/id_rsa "$SSH_USER@$SSH_HOST" "mkdir -p ~/rooms"
+          scp -P "$SSH_PORT" -i ~/.ssh/id_rsa rooms-build.tar.gz "$SSH_USER@$SSH_HOST:~/rooms/rooms-build.tar.gz"
+
+      - name: Extract, Migrate, and Restart Service on Oracle VM
+        env:
+          SSH_USER: ${{ secrets.ORACLE_USER }}
+          SSH_HOST: ${{ secrets.ORACLE_HOST }}
+          SSH_PORT: ${{ secrets.ORACLE_PORT || '22' }}
+        run: |
+          ssh -p "$SSH_PORT" -i ~/.ssh/id_rsa "$SSH_USER@$SSH_HOST" << 'EOF'
+            set -e
+            cd ~/rooms
+            rm -rf backend/dist frontend/dist
+            tar -xzf rooms-build.tar.gz
+            rm -f rooms-build.tar.gz
+
+            cd ~/rooms/backend
+            npm ci --omit=dev
+            npx prisma generate
+            cp src/generated/prisma/*.node dist/generated/prisma/
+            npx prisma migrate deploy
+
+            sudo systemctl restart service-example
+          EOF
+
+      - name: Cleanup SSH Key
+        if: always()
+        run: rm -rf ~/.ssh/id_rsa
