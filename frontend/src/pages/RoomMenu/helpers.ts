@@ -1,3 +1,4 @@
+import type { BannerHighlight } from "../../components/AuthBanner/types";
 import type { LobbyRoomEntry, RoomMenuLocationState } from "./types";
 
 export const extractLocationError = (state: unknown): string | null => {
@@ -23,4 +24,28 @@ export const removeAvailableRoom = (
   roomId: string,
 ): LobbyRoomEntry[] => {
   return rooms.filter((r) => r.roomId !== roomId);
+};
+
+export const buildLobbyBannerHighlights = (
+  rooms: LobbyRoomEntry[],
+): BannerHighlight[] => {
+  const totalPlayers = rooms.reduce((sum, room) => sum + room.clients, 0);
+
+  return [
+    {
+      label: "Salas Ativas",
+      value: `${rooms.length} ${rooms.length === 1 ? "Sala" : "Salas"}`,
+      accentColor: "#67d1bf",
+    },
+    {
+      label: "Jogadores em Sala",
+      value: `${totalPlayers} Online`,
+      accentColor: "#dfbe62",
+    },
+    {
+      label: "Capacidade",
+      value: "Até 8 Players",
+      accentColor: "#e7edf5",
+    },
+  ];
 };

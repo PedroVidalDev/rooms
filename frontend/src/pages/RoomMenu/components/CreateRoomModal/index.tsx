@@ -1,5 +1,7 @@
 import { useEffect, useState } from "react";
-import { ErrorBanner } from "../ErrorBanner";
+import { Button } from "../../../../components/Button";
+import { ErrorBanner } from "../../../../components/ErrorBanner";
+import { TextInput } from "../../../../components/TextInput";
 import { clampMaxClients, validateRoomCreation } from "./helpers";
 import type { CreateRoomModalProps } from "./types";
 
@@ -69,12 +71,12 @@ export const CreateRoomModal = (props: CreateRoomModalProps) => {
         onClick={(e) => e.stopPropagation()}
         style={{
           width: "100%",
-          maxWidth: 400,
-          padding: "26px 24px 24px",
-          borderRadius: 16,
+          maxWidth: 420,
+          padding: "28px 26px 26px",
+          borderRadius: 20,
           background: "rgba(10, 18, 28, 0.96)",
           border: "1px solid rgba(88, 112, 138, 0.42)",
-          boxShadow: "0 22px 48px rgba(0, 0, 0, 0.55)",
+          boxShadow: "0 22px 54px rgba(0, 0, 0, 0.55)",
           display: "flex",
           flexDirection: "column",
           gap: 18,
@@ -117,13 +119,14 @@ export const CreateRoomModal = (props: CreateRoomModalProps) => {
                 color: "#e7edf5",
               }}
             >
-              Create New Room
+              Criar Nova Sala
             </h2>
           </div>
 
           <button
             type="button"
             onClick={handleClose}
+            aria-label="Fechar modal"
             style={{
               border: "1px solid rgba(88, 112, 138, 0.36)",
               borderRadius: 8,
@@ -146,111 +149,42 @@ export const CreateRoomModal = (props: CreateRoomModalProps) => {
         <ErrorBanner message={modalError} onDismiss={() => setModalError(null)} />
 
         <form onSubmit={handleSubmit} style={{ display: "flex", flexDirection: "column", gap: 14 }}>
-          <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
-            <label
-              style={{
-                fontSize: 11,
-                fontWeight: 700,
-                letterSpacing: "0.08em",
-                textTransform: "uppercase",
-                color: "#e7edf5",
-                opacity: 0.75,
-              }}
-            >
-              Room Name (unique)
-            </label>
-            <input
-              type="text"
-              autoFocus
-              placeholder="e.g. Daily Conversation"
-              value={roomName}
-              onChange={(e) => setRoomName(e.target.value)}
-              style={{
-                width: "100%",
-                borderRadius: 10,
-                border: "1px solid #44505c",
-                background: "#1d232b",
-                color: "#e7edf5",
-                padding: "10px 12px",
-                fontSize: 14,
-                fontFamily: "system-ui, sans-serif",
-                outline: "none",
-                boxSizing: "border-box",
-              }}
-            />
-          </div>
+          <TextInput
+            id="create-room-name"
+            label="Nome da Sala (único)"
+            type="text"
+            autoFocus
+            placeholder="Ex: Daily Conversation"
+            value={roomName}
+            onChange={(e) => setRoomName(e.target.value)}
+          />
 
-          <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
-            <label
-              style={{
-                fontSize: 11,
-                fontWeight: 700,
-                letterSpacing: "0.08em",
-                textTransform: "uppercase",
-                color: "#e7edf5",
-                opacity: 0.75,
-              }}
-            >
-              Max Users (2 - 8)
-            </label>
-            <input
-              type="number"
-              min={2}
-              max={8}
-              value={maxClients}
-              onChange={(e) => setMaxClients(Number(e.target.value))}
-              style={{
-                width: "100%",
-                borderRadius: 10,
-                border: "1px solid #44505c",
-                background: "#1d232b",
-                color: "#e7edf5",
-                padding: "10px 12px",
-                fontSize: 14,
-                fontFamily: "system-ui, sans-serif",
-                outline: "none",
-                boxSizing: "border-box",
-              }}
-            />
-          </div>
+          <TextInput
+            id="create-room-max-clients"
+            label="Máximo de Jogadores (2 - 8)"
+            type="number"
+            min={2}
+            max={8}
+            value={maxClients}
+            onChange={(e) => setMaxClients(Number(e.target.value))}
+          />
 
           <div style={{ display: "flex", gap: 10, marginTop: 4 }}>
-            <button
+            <Button
               type="button"
+              variant="outline"
               onClick={handleClose}
-              style={{
-                flex: 1,
-                border: "1px solid #44505c",
-                borderRadius: 10,
-                padding: "11px 14px",
-                fontSize: 14,
-                fontWeight: 700,
-                fontFamily: "system-ui, sans-serif",
-                cursor: "pointer",
-                background: "#1d232b",
-                color: "#e7edf5",
-              }}
+              style={{ flex: 1, color: "#e7edf5" }}
             >
-              Cancel
-            </button>
-            <button
+              Cancelar
+            </Button>
+            <Button
               type="submit"
-              style={{
-                flex: 1,
-                border: "none",
-                borderRadius: 10,
-                padding: "11px 14px",
-                fontSize: 14,
-                fontWeight: 700,
-                fontFamily: "system-ui, sans-serif",
-                cursor: "pointer",
-                background: "#67d1bf",
-                color: "#12202b",
-                boxShadow: "0 6px 18px rgba(103, 209, 191, 0.22)",
-              }}
+              variant="primary"
+              style={{ flex: 1 }}
             >
-              Create Room
-            </button>
+              Criar Sala
+            </Button>
           </div>
         </form>
       </div>

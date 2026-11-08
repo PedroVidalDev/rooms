@@ -1,23 +1,35 @@
 import { Room } from "@colyseus/sdk";
 import { useEffect, useState } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
+import { client } from "../../colyseus/client";
+import { AuthBanner } from "../../components/AuthBanner";
+import { Button } from "../../components/Button";
+import { ErrorBanner } from "../../components/ErrorBanner";
+import { PageHeader } from "../../components/PageHeader";
+import { SectionDivider } from "../../components/SectionDivider";
+import { useAuthContext } from "../../contexts/AuthContext";
+import { AUTH_TOKEN_STORAGE_KEY } from "../../storage/authToken";
 import { AvailableRooms } from "./components/AvailableRooms";
 import { CreateRoomModal } from "./components/CreateRoomModal";
-import { ErrorBanner } from "./components/ErrorBanner";
 import { JoinByIdForm } from "./components/JoinByIdForm";
-import { MenuHeader } from "./components/MenuHeader";
-import { SectionDivider } from "./components/SectionDivider";
-import { extractLocationError, removeAvailableRoom, upsertAvailableRoom } from "./helpers";
+import { UserAccountBar } from "./components/UserAccountBar";
+import {
+  buildLobbyBannerHighlights,
+  extractLocationError,
+  removeAvailableRoom,
+  upsertAvailableRoom,
+} from "./helpers";
 import type { LobbyRoomEntry } from "./types";
-import { client } from "../../colyseus/client";
-import { AUTH_TOKEN_STORAGE_KEY } from "../../storage/authToken";
 
 export const RoomMenu = () => {
+  const { authUser } = useAuthContext();
   const navigate = useNavigate();
   const location = useLocation();
 
   const [availableRooms, setAvailableRooms] = useState<LobbyRoomEntry[]>([]);
-  const [error, setError] = useState<string | null>(() => extractLocationError(location.state));
+  const [error, setError] = useState<string | null>(() =>
+    extractLocationError(location.state),
+  );
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
 
   const handleJoinRoom = (roomId: string) => {
@@ -33,6 +45,10 @@ export const RoomMenu = () => {
         maxClients,
       },
     });
+  };
+
+  const handleOpenAccountDetails = () => {
+    navigate("/account");
   };
 
   useEffect(() => {
@@ -90,22 +106,19 @@ export const RoomMenu = () => {
         backgroundSize: "100% 100%, 44px 44px, 44px 44px",
         fontFamily: "system-ui, sans-serif",
         color: "#e7edf5",
-        padding: 16,
         boxSizing: "border-box",
       }}
     >
       <div
         style={{
-          width: "100%",
-          maxWidth: 440,
-          padding: "28px 26px 26px",
-          borderRadius: 16,
-          background: "rgba(10, 18, 28, 0.86)",
+          width: "90vw",
+          height: "90vh",
+          borderRadius: 20,
+          background: "rgba(10, 18, 28, 0.88)",
           border: "1px solid rgba(88, 112, 138, 0.36)",
-          boxShadow: "0 18px 42px rgba(0, 0, 0, 0.38)",
+          boxShadow: "0 22px 54px rgba(0, 0, 0, 0.48)",
           display: "flex",
-          flexDirection: "column",
-          gap: 18,
+          flexDirection: "row",
           position: "relative",
           overflow: "hidden",
         }}
@@ -114,46 +127,76 @@ export const RoomMenu = () => {
           style={{
             position: "absolute",
             top: 0,
-            left: "15%",
-            right: "15%",
+            left: "12%",
+            right: "12%",
             height: 3,
+            zIndex: 2,
             borderRadius: "0 0 6px 6px",
             background: "#8ed1c2",
             boxShadow: "0 0 14px #5dc8b0",
           }}
         />
 
-        <MenuHeader />
+        <AuthBanner
+          badge="Arena de Voz 3D"
+          statusTag="Lobby Online"
+          title="Escolha sua arena e converse em tempo real."
+          subtitle="Explore as salas ativas no lobby, entre diretamente pelo código da sala ou crie sua própria arena 3D para praticar."
+          highlights={buildLobbyBannerHighlights(availableRooms)}
+        />
 
-        <ErrorBanner message={error} onDismiss={() => setError(null)} />
-
-        <AvailableRooms rooms={availableRooms} onJoinRoom={handleJoinRoom} />
-
-        <SectionDivider label="ou entrar por ID" />
-
-        <JoinByIdForm onJoinById={handleJoinRoom} />
-
-        <SectionDivider label="ou criar sala" />
-
-        <button
-          type="button"
-          onClick={() => setIsCreateModalOpen(true)}
+        <div
           style={{
-            width: "100%",
-            border: "none",
-            borderRadius: 10,
-            padding: "12px 16px",
-            fontSize: 15,
-            fontWeight: 700,
-            fontFamily: "system-ui, sans-serif",
-            cursor: "pointer",
-            background: "#67d1bf",
-            color: "#12202b",
-            boxShadow: "0 6px 18px rgba(103, 209, 191, 0.22)",
+            flex: 1,
+            padding: "40px 48px",
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            overflowY: "auto",
           }}
         >
-          + Create New Room
-        </button>
+          <div
+            style={{
+              width: "100%",
+              maxWidth: 440,
+              display: "flex",
+              flexDirection: "column",
+              gap: 18,
+              margin: "auto 0",
+            }}
+          >
+            <UserAccountBar
+              name={authUser?.name}
+              email={authUser?.email}
+              onOpenAccountDetails={handleOpenAccountDetails}
+            />
+
+            <PageHeader
+              badge="Lobby de Salas"
+              title="Salas de Conversação"
+              subtitle="Escolha uma sala disponível, entre usando o ID ou crie uma nova arena de conversação."
+            />
+
+            <ErrorBanner message={error} onDismiss={() => setError(null)} />
+
+            <AvailableRooms rooms={availableRooms} onJoinRoom={handleJoinRoom} />
+
+            <SectionDivider label="ou entrar por ID" />
+
+            <JoinByIdForm onJoinById={handleJoinRoom} />
+
+            <SectionDivider label="ou criar sala" />
+
+            <Button
+              variant="primary"
+              fullWidth
+              onClick={() => setIsCreateModalOpen(true)}
+              style={{ fontSize: 15 }}
+            >
+              + Criar Nova Sala
+            </Button>
+          </div>
+        </div>
       </div>
 
       <CreateRoomModal

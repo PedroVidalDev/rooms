@@ -11,7 +11,7 @@ export const validateRoomCreation = (
   const trimmedName = rawRoomName.trim();
 
   if (!trimmedName) {
-    return { valid: false, error: "Please enter a room name." };
+    return { valid: false, error: "Informe um nome para a sala." };
   }
 
   const nameExists = availableRooms.some(
@@ -21,7 +21,7 @@ export const validateRoomCreation = (
   if (nameExists) {
     return {
       valid: false,
-      error: `Room name "${trimmedName}" is already taken.`,
+      error: `Já existe uma sala com o nome "${trimmedName}".`,
     };
   }
 

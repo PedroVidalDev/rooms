@@ -1,3 +1,4 @@
+import { Button } from "../../../../../../components/Button";
 import { getRoomDisplayName, isRoomFull } from "../../helpers";
 import type { RoomCardProps } from "./types";
 
@@ -53,24 +54,18 @@ export const RoomCard = (props: RoomCardProps) => {
           {room.clients} / {room.maxClients}
         </span>
 
-        <button
-          type="button"
+        <Button
+          variant="primary"
           onClick={() => onJoin(room.roomId)}
           disabled={isFull}
           style={{
-            border: "none",
             borderRadius: 8,
-            padding: "7px 12px",
+            padding: "7px 14px",
             fontSize: 13,
-            fontWeight: 700,
-            fontFamily: "system-ui, sans-serif",
-            cursor: isFull ? "not-allowed" : "pointer",
-            background: isFull ? "#2f3a45" : "#67d1bf",
-            color: isFull ? "rgba(231, 237, 245, 0.45)" : "#12202b",
           }}
         >
-          {isFull ? "Full" : "Join"}
-        </button>
+          {isFull ? "Cheia" : "Entrar"}
+        </Button>
       </div>
     </div>
   );

@@ -1,4 +1,6 @@
 import { useState } from "react";
+import { Button } from "../../../../components/Button";
+import { TEXT_INPUT_BASE_STYLE } from "../../../../components/TextInput/consts";
 import { normalizeRoomId } from "./helpers";
 import type { JoinByIdFormProps } from "./types";
 
@@ -19,38 +21,27 @@ export const JoinByIdForm = (props: JoinByIdFormProps) => {
   return (
     <form onSubmit={handleSubmit} style={{ display: "flex", gap: 10 }}>
       <input
-        placeholder="Paste Room ID..."
+        placeholder="Cole o ID da sala..."
         value={roomIdInput}
         onChange={(e) => setRoomIdInput(e.target.value)}
         style={{
+          ...TEXT_INPUT_BASE_STYLE,
           flex: 1,
-          borderRadius: 10,
-          border: "1px solid #44505c",
-          background: "#1d232b",
-          color: "#e7edf5",
-          padding: "10px 12px",
-          fontSize: 14,
-          fontFamily: "system-ui, sans-serif",
-          outline: "none",
+          width: "auto",
         }}
       />
-      <button
+      <Button
         type="submit"
+        variant="secondary"
         disabled={!trimmedRoomId}
         style={{
-          border: "none",
-          borderRadius: 10,
-          padding: "10px 16px",
-          fontSize: 14,
-          fontWeight: 700,
-          fontFamily: "system-ui, sans-serif",
-          cursor: trimmedRoomId ? "pointer" : "not-allowed",
-          background: trimmedRoomId ? "#dfbe62" : "#2f3a45",
-          color: trimmedRoomId ? "#12202b" : "rgba(231, 237, 245, 0.45)",
+          padding: "11px 16px",
+          flexShrink: 0,
+          whiteSpace: "nowrap",
         }}
       >
-        Join Room
-      </button>
+        Entrar na Sala
+      </Button>
     </form>
   );
 };
