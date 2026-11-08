@@ -7,4 +7,5 @@ export type LoginLocationState = {
   error?: string;
   successMessage?: string;
   registeredEmail?: string;
+  requiresVerification?: boolean;
 };

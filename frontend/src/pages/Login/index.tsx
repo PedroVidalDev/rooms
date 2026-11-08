@@ -7,20 +7,31 @@ import { PageHeader } from "../../components/PageHeader";
 import { SectionDivider } from "../../components/SectionDivider";
 import { SuccessBanner } from "../../components/SuccessBanner";
 import { LoginForm } from "./components/LoginForm";
+import { VerificationCodeForm } from "./components/VerificationCodeForm";
 import {
   extractLoginLocationState,
   formatLoginError,
+  formatVerificationError,
+  isUnverifiedLoginError,
 } from "./helpers";
 import type { LoginPayload } from "./types";
 import { useAuthContext } from "../../contexts/AuthContext";
 
 export const Login = () => {
-  const { login } = useAuthContext(); 
+  const { login, verifyCode } = useAuthContext();
 
   const navigate = useNavigate();
   const location = useLocation();
   const initialLocationState = extractLoginLocationState(location.state);
 
+  const [verificationEmail, setVerificationEmail] = useState<string | null>(
+    initialLocationState.requiresVerification && initialLocationState.registeredEmail
+      ? initialLocationState.registeredEmail
+      : null,
+  );
+  const [lastAttemptedEmail, setLastAttemptedEmail] = useState<string>(
+    initialLocationState.registeredEmail ?? "",
+  );
   const [error, setError] = useState<string | null>(initialLocationState.error ?? null);
   const [successMessage, setSuccessMessage] = useState<string | null>(
     initialLocationState.successMessage ?? null,
@@ -31,15 +42,48 @@ export const Login = () => {
     setError(null);
     setSuccessMessage(null);
     setIsSubmitting(true);
+    setLastAttemptedEmail(payload.email);
 
     try {
       await login(payload.email, payload.password);
       navigate("/", { replace: true });
     } catch (err) {
+      if (isUnverifiedLoginError(err)) {
+        setVerificationEmail(payload.email);
+        setSuccessMessage(
+          "Enviamos um código de verificação de 6 dígitos para o seu e-mail.",
+        );
+        return;
+      }
       setError(formatLoginError(err));
     } finally {
       setIsSubmitting(false);
     }
+  };
+
+  const handleVerifyCode = async (code: string) => {
+    if (!verificationEmail) {
+      return;
+    }
+
+    setError(null);
+    setSuccessMessage(null);
+    setIsSubmitting(true);
+
+    try {
+      await verifyCode(verificationEmail, code);
+      navigate("/", { replace: true });
+    } catch (err) {
+      setError(formatVerificationError(err));
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
+  const handleBackToLogin = () => {
+    setVerificationEmail(null);
+    setError(null);
+    setSuccessMessage(null);
   };
 
   return (
@@ -116,37 +160,75 @@ export const Login = () => {
               gap: 20,
             }}
           >
-            <PageHeader
-              badge="Acesso à Conta"
-              title="Entrar na Arena"
-              subtitle="Informe seu e-mail e senha para acessar o lobby e as salas de conversação."
-            />
+            {verificationEmail ? (
+              <>
+                <PageHeader
+                  badge="Verificação de Conta"
+                  title="Confirmar Código"
+                  subtitle={`Informe os 6 dígitos enviados para ${verificationEmail}. O código expira em 30 minutos.`}
+                />
 
-            <SuccessBanner
-              message={successMessage}
-              onDismiss={() => setSuccessMessage(null)}
-            />
+                <SuccessBanner
+                  message={successMessage}
+                  onDismiss={() => setSuccessMessage(null)}
+                />
 
-            <ErrorBanner
-              message={error}
-              onDismiss={() => setError(null)}
-            />
+                <ErrorBanner
+                  message={error}
+                  onDismiss={() => setError(null)}
+                />
 
-            <LoginForm
-              initialEmail={initialLocationState.registeredEmail}
-              isSubmitting={isSubmitting}
-              onSubmit={handleLogin}
-            />
+                <VerificationCodeForm
+                  isSubmitting={isSubmitting}
+                  onSubmit={handleVerifyCode}
+                />
 
-            <SectionDivider label="ou ainda não tem conta?" />
+                <SectionDivider label="ou deseja voltar?" />
 
-            <Button
-              variant="outline"
-              fullWidth
-              onClick={() => navigate("/register")}
-            >
-              Criar Nova Conta
-            </Button>
+                <Button
+                  variant="outline"
+                  fullWidth
+                  disabled={isSubmitting}
+                  onClick={handleBackToLogin}
+                >
+                  Voltar para o Login
+                </Button>
+              </>
+            ) : (
+              <>
+                <PageHeader
+                  badge="Acesso à Conta"
+                  title="Entrar na Arena"
+                  subtitle="Informe seu e-mail e senha para acessar o lobby e as salas de conversação."
+                />
+
+                <SuccessBanner
+                  message={successMessage}
+                  onDismiss={() => setSuccessMessage(null)}
+                />
+
+                <ErrorBanner
+                  message={error}
+                  onDismiss={() => setError(null)}
+                />
+
+                <LoginForm
+                  initialEmail={lastAttemptedEmail}
+                  isSubmitting={isSubmitting}
+                  onSubmit={handleLogin}
+                />
+
+                <SectionDivider label="ou ainda não tem conta?" />
+
+                <Button
+                  variant="outline"
+                  fullWidth
+                  onClick={() => navigate("/register")}
+                >
+                  Criar Nova Conta
+                </Button>
+              </>
+            )}
           </div>
         </div>
       </div>

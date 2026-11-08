@@ -6,7 +6,16 @@ export const extractLoginLocationState = (state: unknown): LoginLocationState =>
     error: parsed.error,
     successMessage: parsed.successMessage,
     registeredEmail: parsed.registeredEmail,
+    requiresVerification: parsed.requiresVerification,
   };
+};
+
+export const isUnverifiedLoginError = (err: unknown): boolean => {
+  const status =
+    (err as { status?: number; code?: number } | null)?.status ??
+    (err as { status?: number; code?: number } | null)?.code;
+
+  return status === 403;
 };
 
 export const formatLoginError = (err: unknown): string => {
@@ -23,4 +32,16 @@ export const formatLoginError = (err: unknown): string => {
   }
 
   return "Não foi possível entrar na sua conta no momento. Tente novamente.";
+};
+
+export const formatVerificationError = (err: unknown): string => {
+  const status =
+    (err as { status?: number; code?: number } | null)?.status ??
+    (err as { status?: number; code?: number } | null)?.code;
+
+  if (status === 400) {
+    return "Código inválido ou expirado. Verifique os 6 dígitos enviados para o seu e-mail.";
+  }
+
+  return "Não foi possível verificar o código no momento. Tente novamente.";
 };

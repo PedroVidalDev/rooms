@@ -25,7 +25,8 @@ export const Register = () => {
         replace: true,
         state: {
           registeredEmail: createdUser.email,
-          successMessage: "Conta criada com sucesso! Faça login para entrar na arena.",
+          requiresVerification: true,
+          successMessage: "Conta criada! Enviamos um código de 6 dígitos para o seu e-mail.",
         },
       });
     } catch (err) {

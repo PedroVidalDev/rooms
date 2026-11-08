@@ -31,6 +31,9 @@ services:
     networks:
       - rooms-network
 
+networks:
+  rooms-network:
+
 volumes:
   postgres_data:
   redis_data:
