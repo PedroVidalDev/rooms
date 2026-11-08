@@ -4,13 +4,16 @@ import { User } from "../entities/user.entity.js";
 import { UserCreateDtoType } from "../dtos/userCreate.dto.js";
 import { UserDtoType } from "../dtos/user.dto.js";
 import bcrypt from "bcrypt";
+import { MailQueue } from "../../mail/queues/mail.queue.js";
 
 @injectable()
 export class UserService {
 
     constructor(
         @inject("UserRepository")
-        private readonly userRepository: UserRepository
+        private readonly userRepository: UserRepository,
+        @inject("MailQueue")
+        private readonly mailQueue: MailQueue
     ) {}
 
     public async register(data: UserCreateDtoType): Promise<UserDtoType> {
@@ -34,6 +37,12 @@ export class UserService {
         );
 
         const createdUser = await this.userRepository.create(user);
+
+        await this.mailQueue.addMailJob({
+            to: createdUser.getEmail(),
+            subject: "Welcome to Rooms!",
+            html: `<h1>Welcome, ${createdUser.getName()}!</h1><p>Your account was created.</p>`,
+        });
 
         return createdUser.toDto();
     }
