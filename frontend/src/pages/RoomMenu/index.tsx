@@ -31,6 +31,16 @@ export const RoomMenu = () => {
     extractLocationError(location.state),
   );
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
+  const [isMobile, setIsMobile] = useState(() => window.innerWidth < 1000);
+
+  useEffect(() => {
+    const handleResize = () => {
+      setIsMobile(window.innerWidth < 1000);
+    };
+
+    window.addEventListener("resize", handleResize);
+    return () => window.removeEventListener("resize", handleResize);
+  }, []);
 
   const handleJoinRoom = (roomId: string) => {
     navigate(`/room/${encodeURIComponent(roomId)}`);
@@ -137,13 +147,15 @@ export const RoomMenu = () => {
           }}
         />
 
-        <AuthBanner
-          badge="Arena de Voz 3D"
-          statusTag="Lobby Online"
-          title="Escolha sua arena e converse em tempo real."
-          subtitle="Explore as salas ativas no lobby, entre diretamente pelo código da sala ou crie sua própria arena 3D para praticar."
-          highlights={buildLobbyBannerHighlights(availableRooms)}
-        />
+        {!isMobile && (
+          <AuthBanner
+            badge="Arena de Voz 3D"
+            statusTag="Lobby Online"
+            title="Escolha sua arena e converse em tempo real."
+            subtitle="Explore as salas ativas no lobby, entre diretamente pelo código da sala ou crie sua própria arena 3D para praticar."
+            highlights={buildLobbyBannerHighlights(availableRooms)}
+          />
+        )}
 
         <div
           style={{

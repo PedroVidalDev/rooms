@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
 import { AuthBanner } from "../../components/AuthBanner";
 import { Button } from "../../components/Button";
@@ -37,6 +37,16 @@ export const Login = () => {
     initialLocationState.successMessage ?? null,
   );
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [isMobile, setIsMobile] = useState(() => window.innerWidth < 1000);
+
+  useEffect(() => {
+    const handleResize = () => {
+      setIsMobile(window.innerWidth < 1000);
+    };
+
+    window.addEventListener("resize", handleResize);
+    return () => window.removeEventListener("resize", handleResize);
+  }, []);
 
   const handleLogin = async (payload: LoginPayload) => {
     setError(null);
@@ -134,12 +144,14 @@ export const Login = () => {
           }}
         />
 
-        <AuthBanner
-          badge="Arena de Voz 3D"
-          statusTag="Lobby Online"
-          title="Pratique inglês em salas 3D em tempo real."
-          subtitle="Entre no lobby, conecte-se com outros jogadores por voz e evolua sua conversação em um ambiente interativo."
-        />
+        {!isMobile && (
+          <AuthBanner
+            badge="Arena de Voz 3D"
+            statusTag="Lobby Online"
+            title="Pratique inglês em salas 3D em tempo real."
+            subtitle="Entre no lobby, conecte-se com outros jogadores por voz e evolua sua conversação em um ambiente interativo."
+          />
+        )}
 
         <div
           style={{

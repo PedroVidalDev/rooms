@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { AuthBanner } from "../../components/AuthBanner";
 import { Button } from "../../components/Button";
@@ -14,6 +14,16 @@ export const Register = () => {
 
   const [error, setError] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [isMobile, setIsMobile] = useState(() => window.innerWidth < 1000);
+
+  useEffect(() => {
+    const handleResize = () => {
+      setIsMobile(window.innerWidth < 1000);
+    };
+
+    window.addEventListener("resize", handleResize);
+    return () => window.removeEventListener("resize", handleResize);
+  }, []);
 
   const handleRegister = async (payload: RegisterPayload) => {
     setError(null);
@@ -84,12 +94,14 @@ export const Register = () => {
           }}
         />
 
-        <AuthBanner
-          badge="Arena de Voz 3D"
-          statusTag="Novo Jogador"
-          title="Comece sua jornada nas arenas de conversação."
-          subtitle="Crie sua conta gratuitamente para entrar em salas ativas, conversar por voz e criar suas próprias arenas 3D."
-        />
+        {!isMobile && (
+          <AuthBanner
+            badge="Arena de Voz 3D"
+            statusTag="Novo Jogador"
+            title="Comece sua jornada nas arenas de conversação."
+            subtitle="Crie sua conta gratuitamente para entrar em salas ativas, conversar por voz e criar suas próprias arenas 3D."
+          />
+        )}
 
         <div
           style={{
