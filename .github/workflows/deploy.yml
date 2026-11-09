@@ -35,6 +35,7 @@ jobs:
           DATABASE_URL=${{ secrets.DATABASE_URL }}
           REDIS_HOST=${{ secrets.REDIS_HOST || vars.REDIS_HOST || 'localhost' }}
           REDIS_PORT=${{ secrets.REDIS_PORT || vars.REDIS_PORT || '6379' }}
+          REDIS_PASSWORD=${{ secrets.REDIS_PASSWORD }}
           SMTP_USER=${{ secrets.SMTP_USER }}
           SMTP_PASS=${{ secrets.SMTP_PASS }}
           MAIL_FROM=${{ secrets.MAIL_FROM }}
