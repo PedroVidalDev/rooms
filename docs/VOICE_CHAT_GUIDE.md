@@ -54,7 +54,7 @@ sequenceDiagram
 | :--- | :--- |
 | [`frontend/src/pages/Room/components/VoiceChatControls/index.tsx`](../frontend/src/pages/Room/components/VoiceChatControls/index.tsx) | Main React component managing microphone capture, `RTCPeerConnection` lifecycle, Colyseus signaling listeners, hidden `<audio>` elements, and the `100ms` proximity volume loop. |
 | [`frontend/src/pages/Room/components/VoiceChatControls/helpers.ts`](../frontend/src/pages/Room/components/VoiceChatControls/helpers.ts) | Pure helper functions: `computeProximityVolume` (quadratic distance falloff) and `shouldInitiatePeerOffer` (alphabetical ID tie-breaker to prevent offer collisions). |
-| [`frontend/src/pages/Room/components/VoiceChatControls/consts.ts`](../frontend/src/pages/Room/components/VoiceChatControls/consts.ts) | Constants: `maxVoiceDistance = 14` and `rtcConfiguration` (Google public STUN server `stun:stun.l.google.com:19302`). |
+| [`frontend/src/pages/Room/components/VoiceChatControls/consts.ts`](../frontend/src/pages/Room/components/VoiceChatControls/consts.ts) | Constants: `maxVoiceDistance = 14` and `rtcConfiguration` (Google public STUN server + TURN server configured via `VITE_TURN_*` env vars). |
 | [`frontend/src/pages/Room/components/VoiceChatControls/types.ts`](../frontend/src/pages/Room/components/VoiceChatControls/types.ts) | TypeScript types for `VoiceChatControlsProps` and `VoiceSignalPayload` (`offer`, `answer`, `ice-candidate`). |
 | [`backend/src/colyseus/EnglishRoom.ts`](../backend/src/colyseus/EnglishRoom.ts) | Tracks `voiceReadyClients` (`Set<string>`) and relays `voice_ready`, `voice_disabled`, and `voice_signal` messages between room participants. |
 
@@ -203,13 +203,20 @@ if (payload.type === 'offer') {
 
 Now both browsers know *how* they will talk, but they still need to know *where* on the internet to send the UDP audio packets (since most players are behind home routers/NATs).
 
-1. When `new RTCPeerConnection(rtcConfiguration)` was created, it was given Google's public STUN server ([`consts.ts`](../frontend/src/pages/Room/components/VoiceChatControls/consts.ts)):
+1. When `new RTCPeerConnection(rtcConfiguration)` was created, it was given the STUN and TURN servers defined in [`consts.ts`](../frontend/src/pages/Room/components/VoiceChatControls/consts.ts):
    ```ts
    export const rtcConfiguration: RTCConfiguration = {
-     iceServers: [{ urls: 'stun:stun.l.google.com:19302' }],
+     iceServers: [
+       { urls: `stun:stun.l.google.com:19302` },
+       {
+         urls: `turn:${import.meta.env.VITE_TURN_SERVER}:${import.meta.env.VITE_TURN_PORT}`,
+         username: import.meta.env.VITE_TURN_USERNAME,
+         credential: import.meta.env.VITE_TURN_CREDENTIAL,
+       },
+     ],
    };
    ```
-2. Behind the scenes, both browsers ask the STUN server: *"What is my public IP address and port?"*
+2. Behind the scenes, both browsers ask the STUN/TURN servers for their network paths ("What is my public IP/port, and what is my TURN relay address?").
 3. Every time a browser discovers a network path (called an **ICE Candidate**), its `peerConnection.onicecandidate` callback fires automatically:
    ```ts
    peerConnection.onicecandidate = (event) => {
@@ -309,3 +316,194 @@ Connections and `<audio>` DOM elements are automatically cleaned up in four scen
 2. **Remote Player Disables Voice (`voice-peer-disabled`)**: When another player clicks **"Desativar Voz"**, the server broadcasts `'voice-peer-disabled'`, and all other browsers call `closeVoiceConnection(peerSessionId)` to close that specific `RTCPeerConnection` and remove their `<audio>` tag.
 3. **Remote Player Leaves the Room (`voice-peer-left` / `players` state change)**: When a player disconnects from Colyseus, `onLeave` broadcasts `'voice-peer-left'` and removes the player from `state.players`. Both listeners invoke `closeVoiceConnection(peerSessionId)`.
 4. **WebRTC Connection Failure**: If `peerConnection.onconnectionstatechange` reports `'failed'` or `'closed'`, `closeVoiceConnection(peerSessionId)` automatically cleans up the stale connection and audio element.
+
+---
+
+## 6. How to Read `VoiceChatControls/index.tsx` (Code Walkthrough)
+
+When you first open [`VoiceChatControls/index.tsx`](../frontend/src/pages/Room/components/VoiceChatControls/index.tsx), the code can feel difficult to follow for two specific reasons:
+
+1. **The file is written "bottom-up" (in reverse chronological order)**: Because React `useCallback` hooks must be declared before other hooks that depend on them, lines `30–68` start with **how to tear down and clean up connections**, the middle of the file defines helper functions, and **only at the bottom** (lines `245–354`) do you see the button click handler (`toggleVoiceChat`) and the Colyseus WebSocket listeners! Reading from line 1 to line 407 is like reading a recipe starting with "how to wash the dishes".
+2. **WebRTC performs network actions implicitly inside the browser**: You never see an explicit `fetch('stun.l.google.com')` or `sendAudioPacket()` call in JavaScript because the browser's C++ WebRTC engine runs those automatically when you configure `RTCPeerConnection`.
+
+Below is a practical translation of the code to make reading the file effortless.
+
+---
+
+### A. The Dictionary of `useRef` Variables (Lines 12–20)
+
+At the top of `VoiceChatControls`, several `useRef` hooks store live browser objects. They use `useRef` (instead of `useState`) because mutating them happens asynchronously in WebRTC/WebSocket callbacks and should not trigger React UI re-renders:
+
+| Ref Name | Line | What It Actually Stores |
+| :--- | :--- | :--- |
+| `voiceEnabledRef` | `L12` | Synchronous boolean mirror of `voiceEnabled` so WebSocket/WebRTC callbacks always read the latest state without stale closures. |
+| `sessionIdRef` | `L13` | The local player's Colyseus `sessionId`. |
+| `playersRef` | `L14` | Latest dictionary of all players (`Record<sessionId, Player>`) used by the `100ms` volume timer to read `(x, z)` coordinates. |
+| `previousPlayerIdsRef` | `L15` | Tracks previous player IDs to detect when someone leaves the room and close their voice connection. |
+| `localStreamRef` | `L16` | **Your own physical microphone stream** (`MediaStream`) returned by `getUserMedia`. |
+| `peerConnectionsRef` | `L17` | **Map of active WebRTC "phone calls"**, keyed by remote `sessionId` (`Map<string, RTCPeerConnection>`). If you are talking to 3 people, there are 3 entries here. |
+| `remoteAudioElementsRef` | `L18` | **Map of hidden HTML `<audio>` speakers**, one per remote player (`Map<string, HTMLAudioElement>`). The proximity timer adjusts `.volume` on these elements. |
+| `voiceReadyPeersRef` | `L19` | Set of remote `sessionId`s currently known to have voice chat enabled (`Set<string>`). |
+| `offeredPeersRef` | `L20` | Notepad (`Set<string>`) tracking **which peers we have already sent an SDP `offer` to**, preventing duplicate calls to the same person. |
+
+---
+
+### B. Where Does STUN & Audio Streaming Happen in Code? (`createPeerConnection`, Lines 112–164)
+
+When looking at `createPeerConnection`, it appears to only attach callbacks without doing any immediate network calls. Here is what actually happens under the hood:
+
+```ts
+// 1. Passing rtcConfiguration tells the browser which STUN/TURN servers to use automatically
+const peerConnection = new RTCPeerConnection(rtcConfiguration);
+
+// 2. Plugs your local microphone into this peer connection
+if (localStreamRef.current) {
+  localStreamRef.current.getTracks().forEach((track) => {
+    peerConnection.addTrack(track, localStreamRef.current as MediaStream);
+  });
+}
+```
+
+Next, the code arms **3 automatic browser triggers (event handlers)** on `peerConnection`:
+
+1. **Trigger 1 — `peerConnection.onicecandidate` (Lines 127–136):**
+   - **When does it run?** As soon as `setLocalDescription(offer)` or `setLocalDescription(answer)` is called later, the browser **automatically** contacts the Google STUN server (`rtcConfiguration`) in the background to discover its public IP and port. Every time STUN replies to the browser, the browser fires `onicecandidate` and hands you the discovered network address in `event.candidate`. Your code simply forwards `event.candidate` over Colyseus (`sendVoiceSignal`) to the other player.
+2. **Trigger 2 — `peerConnection.ontrack` (Lines 138–149):**
+   - **When does it run?** The moment the direct P2P connection succeeds and the remote player's microphone audio arrives. The browser hands you their live audio in `event.streams[0]`, and your code attaches it to a hidden `<audio>` element and calls `.play()`.
+3. **Trigger 3 — `peerConnection.onconnectionstatechange` (Lines 151–158):**
+   - **When does it run?** Whenever the WebRTC connection state changes (`connecting` $\rightarrow$ `connected` or `failed`). If routers/firewalls block the connection, the state becomes `'failed'` and this handler cleans up the dead connection.
+
+---
+
+### C. Recommended Order to Read `VoiceChatControls/index.tsx` (Bottom-to-Top)
+
+To read the code in the exact chronological order in which events execute at runtime, read the file in this sequence:
+
+1. **Start at `toggleVoiceChat` (Lines 245–274)**: Triggered when the user clicks the button (`L386`). It captures the microphone (`getUserMedia`), stores it in `localStreamRef.current`, and sends `room.send('voice_ready')`.
+2. **Jump to the `room.onMessage` `useEffect` (Lines 292–354)**: Registers the 5 Colyseus WebSocket listeners:
+   - `'voice-ready-peers'` and `'voice-peer-ready'` call **`ensureVoiceConnection(peerSessionId)`**.
+   - `'voice-signal'` calls **`handleVoiceSignal(fromSessionId, payload)`**.
+3. **Read `ensureVoiceConnection` (Lines 166–200)**: Calls `createPeerConnection`, checks `shouldInitiatePeerOffer` to see if our `sessionId` is alphabetically smaller, and if so, calls `createOffer()`, `setLocalDescription(offer)` (which kicks off STUN discovery in the background!), and sends the `'offer'` via WebSocket.
+4. **Read `handleVoiceSignal` (Lines 202–233)**: A straightforward 3-branch `if` block handling incoming WebSocket signals from a peer:
+   - `payload.type === 'offer'` $\rightarrow$ saves the offer (`setRemoteDescription`), creates an `'answer'`, saves it locally (`setLocalDescription`), and sends the `'answer'` back.
+   - `payload.type === 'answer'` $\rightarrow$ saves the remote peer's answer (`setRemoteDescription`).
+   - `payload.type === 'ice-candidate'` $\rightarrow$ feeds the remote peer's discovered IP/port into `peerConnection.addIceCandidate(...)`.
+5. **Finish at `updateRemoteAudioVolumes` (Lines 70–85 & 356–364)**: Runs on a `100ms` interval, iterating through `remoteAudioElementsRef` and setting `audioElement.volume` using `computeProximityVolume`.
+
+---
+
+## 7. Cross-Network Connectivity: Why STUN Alone Fails and Why You Need TURN (`coturn`)
+
+When testing locally (on the same Wi-Fi or machine) or between simple home networks, voice chat works out of the box. However, when players connect from **different networks** (such as 4G/5G mobile data, ISPs using CGNAT, corporate networks, or strict routers), players may fail to hear each other.
+
+Here is why that happens and how **STUN** and **TURN** solve it.
+
+---
+
+### A. The Problem: Routers, Private IPs, and NAT
+
+Devices on a home Wi-Fi or mobile network do **not** have a public IP address on the internet. They only have a private local IP (like `192.168.1.15`) that exists solely inside their local network. Only the **router** (or ISP gateway) has a real public IP address.
+
+Furthermore, routers have built-in NAT (Network Address Translation) and firewalls that **block unsolicited incoming UDP packets** from unknown IP addresses on the internet unless a specific port mapping allows them through.
+
+---
+
+### B. What Is STUN? ("The Mirror" — Already in `consts.ts`)
+
+Think of a **STUN** (*Session Traversal Utilities for NAT*) server as a **mirror in the cloud**:
+- Before a voice call starts, Player A's browser sends a tiny ping to the STUN server asking: *"Hey, from what public IP address and port do you see my packet coming out of my router?"*
+- The STUN server replies: *"I see you coming from public IP `177.45.10.20` on port `54321`."*
+- Player A then sends `177.45.10.20:54321` to Player B inside an `'ice-candidate'` message so Player B knows where to send audio packets.
+
+In [`consts.ts`](../frontend/src/pages/Room/components/VoiceChatControls/consts.ts), the project already configures Google's free public STUN server:
+```ts
+export const rtcConfiguration: RTCConfiguration = {
+  iceServers: [{ urls: 'stun:stun.l.google.com:19302' }],
+};
+```
+
+#### Why Does STUN Alone Fail on ~20–30% of Networks?
+STUN works for roughly **70% to 80%** of internet connections (Full-Cone or Restricted-Cone NATs). However, it fails on **Symmetric NATs**, **ISP CGNATs** (very common among fiber/neighborhood ISPs), **4G/5G mobile networks**, and **corporate firewalls**.
+
+On those stricter networks, the router enforces a strict security rule:
+> *"I opened port `54321` ONLY to talk to Google's STUN server IP. If a different IP address (Player B) tries to send UDP audio packets to port `54321`, I will drop and block every packet!"*
+
+When either Player A or Player B is behind such a network, direct P2P packets are blocked at the router, `peerConnection.connectionState` transitions to `'failed'`, and no audio comes through.
+
+---
+
+### C. What Is TURN? ("The Relay Bridge" for Blocked Networks)
+
+**TURN** (*Traversal Using Relays around NAT*) is the **fallback bridge** used when routers block the direct STUN path.
+
+```mermaid
+flowchart LR
+    subgraph DirectPath ["1. Direct Path via STUN (Preferred - 70~80% of connections)"]
+        PA1["Player A Browser"] <==>|"Direct UDP Audio\n(Blocked on Symmetric NAT / 4G / CGNAT)"| PB1["Player B Browser"]
+    end
+
+    subgraph RelayPath ["2. Fallback Path via TURN / coturn (100% Success across any network)"]
+        PA2["Player A Browser"] <==>|"Outbound Connection\n(Always allowed by NAT)"| TURN["TURN Server (coturn)\nPublic Cloud Relay"]
+        TURN <==>|"Outbound Connection\n(Always allowed by NAT)"| PB2["Player B Browser"]
+    end
+```
+
+- A TURN server sits on a public cloud VM with an open public IP.
+- When direct P2P connection fails, **both Player A and Player B open an outbound connection to the TURN server**, and the TURN server relays the encrypted audio packets between them in real time.
+- Because both players initiate an outbound connection to the public TURN server, **every router, CGNAT, and 4G firewall allows the traffic through**.
+- **Automatic Fallback (ICE)**: When you configure **both STUN and TURN** in `rtcConfiguration.iceServers`, the browser's ICE agent **always tries the free, lowest-latency direct STUN path first**, and only uses the TURN relay for pairs of players whose networks blocked direct communication.
+
+---
+
+### D. Why Use `coturn` (and How to Configure TURN in `consts.ts`)
+
+Unlike STUN (which only answers a single "what is my IP" packet at the start of a call and uses almost zero bandwidth), a **TURN server continuously relays audio traffic** whenever two peers cannot connect directly. Because of this bandwidth usage, there are no reliable anonymous/unauthenticated public TURN servers like Google's STUN server; TURN always requires `username` and `credential` authentication.
+
+#### Option 1: Self-Hosting `coturn` on Your Own VM (Recommended if you already run a Linux VM)
+[**`coturn`**](https://github.com/coturn/coturn) is the industry-standard, open-source STUN + TURN server for Linux. Since voice audio uses very little bandwidth (~32–48 kbps per audio stream with Opus), a small VM can easily run `coturn` alongside or near your backend:
+
+1. Install `coturn` on Ubuntu/Debian:
+   ```bash
+   sudo apt update && sudo apt install -y coturn
+   ```
+2. Configure `/etc/turnserver.conf`:
+   ```ini
+   listening-port=3478
+   fingerprint
+   lt-cred-mech
+   user=myturnuser:myturnpassword
+   realm=yourdomain.com
+   external-ip=YOUR_VM_PUBLIC_IP
+   min-port=49152
+   max-port=65535
+   ```
+3. Open ports in your VM firewall:
+   - `3478` (TCP & UDP) for STUN/TURN control
+   - `49152–65535` (UDP) for media relay
+4. Enable and start the service:
+   ```bash
+   sudo systemctl enable --now coturn
+   ```
+
+#### Option 2: Managed Cloud TURN Services
+If you prefer not to manage firewall ports on a VM, you can use a managed TURN provider with a free tier (such as **Cloudflare Calls TURN**, **Metered.ca**, or **Twilio Network Traversal**).
+
+#### How `consts.ts` Configures STUN + TURN in the Frontend
+In [`frontend/src/pages/Room/components/VoiceChatControls/consts.ts`](../frontend/src/pages/Room/components/VoiceChatControls/consts.ts), both the Google STUN server and your TURN server (via Vite environment variables) are passed to `rtcConfiguration`:
+
+```ts
+export const maxVoiceDistance = 14;
+
+export const rtcConfiguration: RTCConfiguration = {
+  iceServers: [
+    // 1. Always try direct P2P first via STUN
+    { urls: `stun:stun.l.google.com:19302` },
+    // 2. Fallback to TURN relay if routers/NATs block direct P2P
+    {
+      urls: `turn:${import.meta.env.VITE_TURN_SERVER}:${import.meta.env.VITE_TURN_PORT}`,
+      username: import.meta.env.VITE_TURN_USERNAME,
+      credential: import.meta.env.VITE_TURN_CREDENTIAL,
+    },
+  ],
+};
+```
