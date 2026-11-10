@@ -10,7 +10,9 @@ The voice chat combines three distinct mechanisms:
 
 1. **Local Audio Capture (`MediaDevices.getUserMedia`)**: Captures the player's physical microphone in the browser with built-in audio processing (`echoCancellation`, `noiseSuppression`, `autoGainControl`).
 2. **WebSocket Signaling (`Colyseus` / `EnglishRoom`)**: Acts as the "phonebook/operator" (like sending a text message to coordinate a phone call). The Colyseus server **never processes or relays voice audio bytes**; it only relays lightweight JSON signaling messages (`voice_ready`, `voice_disabled`, `voice_signal`) so browsers can find each other.
-3. **Peer-to-Peer Audio Streaming & Spatial Volume (`WebRTC` + 3D Proximity)**: Once two browsers exchange connection details via Colyseus, they open a direct **WebRTC (`RTCPeerConnection`)** tunnel between each other. Every `100ms`, the receiving browser adjusts the volume of each remote player's hidden `<audio>` element based on the 3D distance between their cubes on the `XZ` plane.
+3. **Peer-to-Peer Audio Streaming & Spatial Volume (`WebRTC` + 3D Proximity)**: Once two browsers exchange connection details via Colyseus, they open a direct **WebRTC (`RTCPeerConnection`)** tunnel between each other in a **Full Mesh P2P topology**. Every `100ms`, the receiving browser adjusts the volume of each remote player's hidden `<audio>` element based on the 3D distance between their cubes on the `XZ` plane.
+
+> **Important — Mutual Opt-In Design:** Voice chat in this project requires **mutual opt-in**. Because both `ensureVoiceConnection` and `handleVoiceSignal` check `if (!voiceEnabledRef.current || !localStreamRef.current) return;`, a player with voice disabled (`"Voz desligada"`) will **neither transmit nor receive** voice audio. Both Player A and Player B must click **"Ativar Voz"** to establish a WebRTC connection and hear each other.
 
 ### Architecture & Signaling Sequence Diagram
 
@@ -56,6 +58,7 @@ sequenceDiagram
 | [`frontend/src/pages/Room/components/VoiceChatControls/helpers.ts`](../frontend/src/pages/Room/components/VoiceChatControls/helpers.ts) | Pure helper functions: `computeProximityVolume` (quadratic distance falloff) and `shouldInitiatePeerOffer` (alphabetical ID tie-breaker to prevent offer collisions). |
 | [`frontend/src/pages/Room/components/VoiceChatControls/consts.ts`](../frontend/src/pages/Room/components/VoiceChatControls/consts.ts) | Constants: `maxVoiceDistance = 14` and `rtcConfiguration` (Google public STUN server + TURN server configured via `VITE_TURN_*` env vars). |
 | [`frontend/src/pages/Room/components/VoiceChatControls/types.ts`](../frontend/src/pages/Room/components/VoiceChatControls/types.ts) | TypeScript types for `VoiceChatControlsProps` and `VoiceSignalPayload` (`offer`, `answer`, `ice-candidate`). |
+| [`frontend/src/pages/Room/index.tsx`](../frontend/src/pages/Room/index.tsx) | Parent `ThreeRoom` page that connects to Colyseus, syncs local player `(x, y, z)` coordinates every `50ms` via `room.send('move')`, and passes `room`, `players`, and `sessionId` into `VoiceChatControls`. |
 | [`backend/src/colyseus/EnglishRoom.ts`](../backend/src/colyseus/EnglishRoom.ts) | Tracks `voiceReadyClients` (`Set<string>`) and relays `voice_ready`, `voice_disabled`, and `voice_signal` messages between room participants. |
 
 ---
@@ -91,6 +94,8 @@ room.send('voice_ready');
 - The browser opens the audio hardware, applies echo cancellation, noise suppression, and auto-gain, and returns a live `MediaStream` containing an audio `MediaStreamTrack`.
 - This stream is stored in `localStreamRef.current`. At this exact moment, audio is being captured in local memory, but is not yet being transmitted anywhere.
 - Immediately after, Player B notifies the Colyseus WebSocket server via `room.send('voice_ready')`.
+
+> **Browser Security Requirement (HTTPS / Secure Context):** Browsers strictly restrict `navigator.mediaDevices.getUserMedia()` to **Secure Contexts** (`https://` or `http://localhost` / `http://127.0.0.1`). If you open the frontend over an insecure LAN IP (e.g., `http://192.168.1.15:5173`) or an unencrypted HTTP VM address, `navigator.mediaDevices` will be `undefined` and `toggleVoiceChat` will fall into the `catch` block (`"Nao foi possivel acessar o microfone."`). Always use `localhost` for local testing or `https://` + `wss://` when testing across devices/VMs.
 
 ---
 
@@ -243,7 +248,8 @@ Now both browsers know *how* they will talk, but they still need to know *where*
 
 As soon as a matching pair of ICE candidates connects **Player A** and **Player B**:
 
-1. **The direct P2P tunnel opens.** The Colyseus server is completely out of the loop. Each browser continuously encodes its microphone audio, encrypts it, and streams it directly to the other player's browser. (If there are 5 voice-enabled players in a room, each browser maintains 4 `RTCPeerConnection` instances in `peerConnectionsRef`).
+1. **The direct P2P tunnel opens (Full Mesh Topology).** The Colyseus server is completely out of the loop. Each browser continuously encodes its microphone audio, encrypts it, and streams it directly to the other player's browser.
+   - **Why Full Mesh P2P fits `maxClients = 8`:** In a Full Mesh topology with $N$ voice-enabled players, each browser maintains $N - 1$ `RTCPeerConnection` instances in `peerConnectionsRef` (and across the room there are $\frac{N(N-1)}{2}$ total peer connections). Because [`EnglishRoom.ts`](../backend/src/colyseus/EnglishRoom.ts) caps rooms at **`maxClients = 8`**, a player never holds more than `7` simultaneous audio connections (~250 kbps total upload), making direct P2P fast and lightweight without needing a centralized media server (SFU).
 2. **Receiving the remote voice stream (`ontrack`)**: When Player A's audio stream arrives at Player B's browser (and vice versa), `peerConnection.ontrack` fires:
    ```ts
    peerConnection.ontrack = (event) => {
@@ -267,7 +273,12 @@ As soon as a matching pair of ICE candidates connects **Player A** and **Player 
 
 Notice that every player transmits their microphone audio at **100% volume**. Volume attenuation is calculated independently by **each receiving browser** based on how far apart the 3D cubes are.
 
-1. **The 100ms Volume Update Loop**:
+1. **How Player Coordinates Reach `VoiceChatControls` (`Room/index.tsx` $\rightarrow$ `EnglishRoom.ts`)**:
+   - In [`frontend/src/pages/Room/index.tsx`](../frontend/src/pages/Room/index.tsx), a `50ms` interval checks if the local player moved and sends `room.send('move', { x, y, z })` to [`EnglishRoom.ts`](../backend/src/colyseus/EnglishRoom.ts).
+   - Colyseus updates the `Player` schema instance in `room.state.players` and synchronizes those changes to all clients in the room.
+   - Even though `Room/index.tsx` skips calling `setPlayers` on `player.onChange` for the local player's own `sessionId` (to avoid unnecessary React re-renders while walking), Colyseus mutates `player.x` and `player.z` **in-place** on the `Player` object reference stored in `playersRef.current[localSessionId]`.
+
+2. **The 100ms Volume Update Loop**:
    In [`VoiceChatControls/index.tsx`](../frontend/src/pages/Room/components/VoiceChatControls/index.tsx), a `window.setInterval` runs every `100ms` (10 times per second) and calls `updateRemoteAudioVolumes()`:
    ```ts
    const updateRemoteAudioVolumes = useCallback(() => {
@@ -284,8 +295,8 @@ Notice that every player transmits their microphone audio at **100% volume**. Vo
    }, []);
    ```
 
-2. **Quadratic Distance Falloff (`computeProximityVolume`)**:
-   In [`VoiceChatControls/helpers.ts`](../frontend/src/pages/Room/components/VoiceChatControls/helpers.ts), the horizontal distance on the `XZ` plane between the local cube and the remote player's cube is converted into a volume between `0.0` and `1.0`:
+3. **Quadratic Distance Falloff (`computeProximityVolume`)**:
+   In [`VoiceChatControls/helpers.ts`](../frontend/src/pages/Room/components/VoiceChatControls/helpers.ts), the horizontal 2D distance on the `XZ` plane (ignoring vertical `y` jump height) between the local cube and the remote player's cube is converted into a volume between `0.0` and `1.0`:
    ```ts
    export const computeProximityVolume = (localPlayer: Player, remotePlayer?: Player): number => {
      if (!remotePlayer) {
@@ -415,11 +426,9 @@ Think of a **STUN** (*Session Traversal Utilities for NAT*) server as a **mirror
 - The STUN server replies: *"I see you coming from public IP `177.45.10.20` on port `54321`."*
 - Player A then sends `177.45.10.20:54321` to Player B inside an `'ice-candidate'` message so Player B knows where to send audio packets.
 
-In [`consts.ts`](../frontend/src/pages/Room/components/VoiceChatControls/consts.ts), the project already configures Google's free public STUN server:
+In [`consts.ts`](../frontend/src/pages/Room/components/VoiceChatControls/consts.ts), the first entry in `rtcConfiguration.iceServers` configures Google's free public STUN server:
 ```ts
-export const rtcConfiguration: RTCConfiguration = {
-  iceServers: [{ urls: 'stun:stun.l.google.com:19302' }],
-};
+{ urls: `stun:stun.l.google.com:19302` }
 ```
 
 #### Why Does STUN Alone Fail on ~20–30% of Networks?
@@ -488,7 +497,7 @@ Unlike STUN (which only answers a single "what is my IP" packet at the start of 
 #### Option 2: Managed Cloud TURN Services
 If you prefer not to manage firewall ports on a VM, you can use a managed TURN provider with a free tier (such as **Cloudflare Calls TURN**, **Metered.ca**, or **Twilio Network Traversal**).
 
-#### How `consts.ts` Configures STUN + TURN in the Frontend
+#### How `consts.ts` and `.env` Configure STUN + TURN in the Frontend
 In [`frontend/src/pages/Room/components/VoiceChatControls/consts.ts`](../frontend/src/pages/Room/components/VoiceChatControls/consts.ts), both the Google STUN server and your TURN server (via Vite environment variables) are passed to `rtcConfiguration`:
 
 ```ts
@@ -507,3 +516,15 @@ export const rtcConfiguration: RTCConfiguration = {
   ],
 };
 ```
+
+In [`frontend/.env`](../frontend/.env.example), make sure all four `VITE_TURN_*` variables are defined (matching your `coturn` or managed TURN credentials):
+
+```dotenv
+VITE_WEBSOCKET_SERVER=ws://localhost:2567
+VITE_TURN_SERVER=YOUR_VM_PUBLIC_IP
+VITE_TURN_PORT=3478
+VITE_TURN_USERNAME=myturnuser
+VITE_TURN_CREDENTIAL=myturnpassword
+```
+
+> **Note:** Because `consts.ts` interpolates `VITE_TURN_SERVER` and `VITE_TURN_PORT` directly into the `turn:` URL string, leaving those variables undefined in `.env` will produce `"turn:undefined:undefined"`, which causes `new RTCPeerConnection(rtcConfiguration)` to throw an invalid URL error in the browser. Always populate `VITE_TURN_*` in `frontend/.env`.
