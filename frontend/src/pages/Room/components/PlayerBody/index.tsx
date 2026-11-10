@@ -7,7 +7,9 @@ import {
   useRapier,
   type RapierRigidBody,
 } from "@react-three/rapier";
-import { MathUtils, Vector3 } from "three";
+import { type Group, MathUtils, Vector3 } from "three";
+import { MinecraftCharacter } from "./components/MinecraftCharacter";
+import type { CharacterMotionState } from "./components/MinecraftCharacter/types";
 import {
   playerHalfSize,
   playerJumpVelocity,
@@ -28,14 +30,34 @@ export const PlayerBody = (props: PlayerBodyProps) => {
 
   const { world, rapier } = useRapier();
   const bodyRef = useRef<RapierRigidBody>(null);
+  const characterVisualRef = useRef<Group>(null);
+  const targetRotationYRef = useRef(0);
+  const motionRef = useRef<CharacterMotionState>({
+    isGrounded: true,
+    isMoving: false,
+  });
+
   const nextPositionRef = useRef(new Vector3(player.x, player.y, player.z));
   const [initialPosition] = useState<[number, number, number]>(() => [
     player.x,
     player.y,
     player.z,
   ]);
-  const color = player.color;
   const playerName = player.name.trim();
+
+  const rotateCharacterSmoothly = () => {
+    if (!characterVisualRef.current) {
+      return;
+    }
+
+    const currentAngle = characterVisualRef.current.rotation.y;
+    const targetAngle = targetRotationYRef.current;
+    const delta = Math.atan2(
+      Math.sin(targetAngle - currentAngle),
+      Math.cos(targetAngle - currentAngle),
+    );
+    characterVisualRef.current.rotation.y = currentAngle + delta * 0.22;
+  };
 
   useFrame(() => {
     const body = bodyRef.current;
@@ -50,30 +72,40 @@ export const PlayerBody = (props: PlayerBodyProps) => {
       const currentVel = body.linvel();
       let nextVy = currentVel.y;
 
+      const groundShape = new rapier.Cuboid(
+        playerHalfSize * 0.9,
+        0.04,
+        playerHalfSize * 0.9,
+      );
+      const groundHit = world.intersectionWithShape(
+        { x: current.x, y: current.y - playerHalfSize - 0.03, z: current.z },
+        { x: 0, y: 0, z: 0, w: 1 },
+        groundShape,
+        undefined,
+        undefined,
+        undefined,
+        body,
+      );
+      const isGrounded = groundHit !== null && Math.abs(currentVel.y) <= 0.5;
+
       if (jumpRequestedRef?.current) {
         jumpRequestedRef.current = false;
 
-        const groundShape = new rapier.Cuboid(
-          playerHalfSize * 0.9,
-          0.04,
-          playerHalfSize * 0.9,
-        );
-        const groundHit = world.intersectionWithShape(
-          { x: current.x, y: current.y - playerHalfSize - 0.03, z: current.z },
-          { x: 0, y: 0, z: 0, w: 1 },
-          groundShape,
-          undefined,
-          undefined,
-          undefined,
-          body,
-        );
-
-        if (groundHit !== null && Math.abs(currentVel.y) <= 0.5) {
+        if (isGrounded) {
           nextVy = playerJumpVelocity;
         }
       }
 
       body.setLinvel({ x: vx, y: nextVy, z: vz }, true);
+
+      const isMovingHorizontally = Math.abs(vx) > 0.01 || Math.abs(vz) > 0.01;
+      if (isMovingHorizontally) {
+        targetRotationYRef.current = Math.atan2(vx, vz);
+      }
+      rotateCharacterSmoothly();
+
+      motionRef.current.isMoving = isMovingHorizontally;
+      motionRef.current.isGrounded = isGrounded && Math.abs(nextVy) <= 0.5;
 
       nextPositionRef.current.set(current.x, current.y, current.z);
       if (onLocalPositionChange) {
@@ -83,6 +115,17 @@ export const PlayerBody = (props: PlayerBodyProps) => {
     }
 
     const smoothing = getPlayerSmoothing(false);
+    const dx = player.x - current.x;
+    const dz = player.z - current.z;
+    const horizontalDist = Math.hypot(dx, dz);
+
+    if (horizontalDist > 0.02) {
+      targetRotationYRef.current = Math.atan2(dx, dz);
+    }
+    rotateCharacterSmoothly();
+
+    motionRef.current.isMoving = horizontalDist > 0.02;
+    motionRef.current.isGrounded = player.y <= playerHalfSize + 0.08;
 
     nextPositionRef.current.set(
       MathUtils.lerp(current.x, player.x, smoothing),
@@ -107,10 +150,9 @@ export const PlayerBody = (props: PlayerBodyProps) => {
         args={[playerHalfSize, playerHalfSize, playerHalfSize]}
         friction={0}
       />
-      <mesh castShadow receiveShadow userData={{ sessionId }}>
-        <boxGeometry args={[1, 1, 1]} />
-        <meshStandardMaterial color={color} />
-      </mesh>
+      <group ref={characterVisualRef}>
+        <MinecraftCharacter motionRef={motionRef} sessionId={sessionId} />
+      </group>
       {!isLocal && playerName && (
         <Html
           position={[0, playerNameOffsetY, 0]}
@@ -140,4 +182,3 @@ export const PlayerBody = (props: PlayerBodyProps) => {
     </RigidBody>
   );
 };
-
