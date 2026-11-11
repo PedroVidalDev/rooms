@@ -11,6 +11,7 @@ import userRoutes from "./user/routers/user.router.js";
 import authRoutes from "./auth/routers/auth.router.js"; 
 import bodyParser from "body-parser";
 import { AuthenticatedLobbyRoom } from "./colyseus/AuthLobbyRoom.js";
+import { seed } from "./database/seed.js";
 
 const port = process.env.PORT ? parseInt(process.env.PORT) : 8080;
 
@@ -34,6 +35,13 @@ const gameServer = new Server({
 gameServer.define("lobby", AuthenticatedLobbyRoom);
 gameServer.define("english_room", EnglishRoom).enableRealtimeListing();
 
-gameServer.listen(port).then(() => {
+const startServer = async () => {
+  if (process.env.NODE_ENV?.trim().toUpperCase() === "DEV") {
+    await seed();
+  }
+
+  await gameServer.listen(port);
   console.log(`Colyseus server is listening on ws://localhost:${port}`);
-});
+};
+
+startServer();
