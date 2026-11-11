@@ -5,6 +5,7 @@ export class User {
     private id: number | null;
     private name: string;
     private email: string;
+    private skinUrl: string | null;
     private password: string;
     private createdAt: Date;
     private updatedAt: Date;
@@ -12,10 +13,11 @@ export class User {
     private isActive: boolean;
     private isVerified: boolean;
 
-    constructor(id: number | null, name: string, email: string, password: string, createdAt: Date, updatedAt: Date, deletedAt: Date | null, isActive: boolean, isVerified: boolean) {
+    constructor(id: number | null, name: string, email: string, skinUrl: string | null, password: string, createdAt: Date, updatedAt: Date, deletedAt: Date | null, isActive: boolean, isVerified: boolean) {
         this.id = id;
         this.name = name;
         this.email = email;
+        this.skinUrl = skinUrl;
         this.password = password;
         this.createdAt = createdAt;
         this.updatedAt = updatedAt;
@@ -34,6 +36,10 @@ export class User {
 
     public getEmail(): string {
         return this.email;
+    }
+
+    public getSkinUrl(): string | null {
+        return this.skinUrl;
     }
 
     public getPassword(): string {
@@ -64,6 +70,7 @@ export class User {
         return {
             name: this.name,
             email: this.email,
+            skinUrl: this.skinUrl,
         };
     }
 
@@ -72,6 +79,7 @@ export class User {
             model.id,
             model.name,
             model.email,
+            model.skinUrl,
             model.password,
             model.createdAt,
             model.updatedAt,

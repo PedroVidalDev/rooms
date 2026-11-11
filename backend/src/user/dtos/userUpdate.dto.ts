@@ -5,6 +5,7 @@ export const UserUpdateDto = z.object({
     email: z.string().email("Invalid email address").optional(),
     currentPassword: z.string().min(6, "Current password must be at least 6 characters long").optional(),
     password: z.string().min(6, "New password must be at least 6 characters long").optional(),
+    skinFile: z.instanceof(File).optional().nullable(),
 });
 
 export type UserUpdateDtoType = z.infer<typeof UserUpdateDto>;

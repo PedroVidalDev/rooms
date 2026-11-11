@@ -7,6 +7,9 @@ import { UserDtoType } from "../dtos/user.dto.js";
 import { UserUpdateInput } from "../../generated/prisma/models.js";
 import bcrypt from "bcrypt";
 import { UserVerificationCodeService } from "./userVerificationCode.service.js";
+import fs from "fs/promises";
+import path from "path";
+import crypto from "crypto";
 
 @injectable()
 export class UserService {
@@ -30,6 +33,7 @@ export class UserService {
             null,
             data.name,
             data.email,
+            null,
             hashedPassword,
             new Date(),
             new Date(),
@@ -43,6 +47,21 @@ export class UserService {
         await this.userVerificationCodeService.sendVerificationCode(createdUser);
 
         return createdUser.toDto();
+    }
+
+    private async uploadSkinFile(file: File): Promise<string> {
+        const uploadsDir = path.resolve(process.cwd(), "uploads", "skins");
+        await fs.mkdir(uploadsDir, { recursive: true });
+
+        const fileName = `${crypto.randomUUID()}.png`;
+        const filePath = path.join(uploadsDir, fileName);
+
+        const arrayBuffer = await file.arrayBuffer();
+        const buffer = Buffer.from(arrayBuffer);
+
+        await fs.writeFile(filePath, buffer);
+
+        return `/uploads/skins/${fileName}`;
     }
 
     public async update(
@@ -59,9 +78,7 @@ export class UserService {
             throw new Error("User not found");
         }
 
-        const updatePayload: UserUpdateInput = {
-            isVerified: false,
-        };
+        const updatePayload: UserUpdateInput = {};
 
         if (data.name !== undefined) {
             updatePayload.name = data.name.trim();
@@ -95,9 +112,25 @@ export class UserService {
             updatePayload.password = await bcrypt.hash(data.password, 16);
         }
 
+        if (data.skinFile !== undefined) {
+            if (data.skinFile === null) {
+                updatePayload.skinUrl = null;
+            } else {
+                const skinUrl = await this.uploadSkinFile(data.skinFile);
+                updatePayload.skinUrl = skinUrl;
+            }
+        }
+
+        const shouldVerify = Boolean(updatePayload.email || updatePayload.password);
+        if (shouldVerify) {
+            updatePayload.isVerified = false;
+        }
+
         const updatedUser = await this.userRepository.update(targetUserId, updatePayload);
 
-        await this.userVerificationCodeService.sendVerificationCode(updatedUser);
+        if (shouldVerify) {
+            await this.userVerificationCodeService.sendVerificationCode(updatedUser);
+        }
 
         return updatedUser.toDto();
     }

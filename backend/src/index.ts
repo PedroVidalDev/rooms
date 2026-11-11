@@ -2,6 +2,7 @@ import "reflect-metadata";
 import "dotenv/config";
 import "./container.js";
 
+import path from "path";
 import http from "http";
 import { Server } from "@colyseus/core";
 import { WebSocketTransport } from "@colyseus/ws-transport";
@@ -16,6 +17,9 @@ import { seed } from "./database/seed.js";
 const port = process.env.PORT ? parseInt(process.env.PORT) : 8080;
 
 const app = express();
+
+app.use("/uploads", express.static(path.resolve(process.cwd(), "uploads")));
+
 app.use(bodyParser.json());
 app.use("/auth", userRoutes);
 app.use("/auth", authRoutes);

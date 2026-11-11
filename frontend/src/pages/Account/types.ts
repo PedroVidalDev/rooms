@@ -3,6 +3,7 @@ export type UpdateAccountPayload = {
   email?: string;
   currentPassword?: string;
   password?: string;
+  skinFile?: File | null;
 };
 
 export type UpdateAccountResponse = {

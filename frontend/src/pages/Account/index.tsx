@@ -100,9 +100,14 @@ export const Account = () => {
       return;
     }
 
+    const payload = {
+      skinFile,
+      ...validation.payload,
+    }
+
     setFieldErrors({});
 
-    if (Object.keys(validation.payload).length === 0) {
+    if (Object.keys(validation.payload).length === 0 && !skinFile) {
       setError("Altere pelo menos um campo antes de salvar.");
       return;
     }
@@ -116,18 +121,20 @@ export const Account = () => {
     setIsSubmitting(true);
 
     try {
-      const updatedUser = await updateUserAccount(userId, validation.payload);
+      const updatedUser = await updateUserAccount(userId, payload);
 
-      removeAuthToken();
-      navigate("/login", {
-        replace: true,
-        state: {
-          registeredEmail: updatedUser.email,
-          requiresVerification: true,
-          successMessage:
-            "Dados atualizados! Enviamos um código de 6 dígitos para validar sua conta.",
-        },
-      });
+      if (validation.payload.email || validation.payload.password) {
+        removeAuthToken();
+        navigate("/login", {
+          replace: true,
+          state: {
+            registeredEmail: updatedUser.email,
+            requiresVerification: true,
+            successMessage:
+              "Dados atualizados! Enviamos um código de 6 dígitos para validar sua conta.",
+          },
+        });
+      }
     } catch (err) {
       setError(formatAccountUpdateError(err));
     } finally {

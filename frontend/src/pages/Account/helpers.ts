@@ -87,8 +87,16 @@ export const updateUserAccount = async (
   userId: number,
   payload: UpdateAccountPayload,
 ): Promise<UpdateAccountResponse> => {
+  const formData = new FormData();
+
+  if (payload.name) formData.append("name", payload.name);
+  if (payload.email) formData.append("email", payload.email);
+  if (payload.currentPassword) formData.append("currentPassword", payload.currentPassword);
+  if (payload.password) formData.append("password", payload.password);
+  if (payload.skinFile) formData.append("skinFile", payload.skinFile);
+
   const response = await client.http.put(`/auth/${userId}`, {
-    body: payload,
+    body: formData,
   });
 
   return response.data as UpdateAccountResponse;
