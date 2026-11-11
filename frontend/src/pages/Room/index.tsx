@@ -3,6 +3,8 @@ import { useLocation, useNavigate, useParams } from 'react-router-dom';
 import { getStateCallbacks, Room } from '@colyseus/sdk';
 import * as THREE from 'three';
 import { RoomState, type Player } from '../../colyseus/RoomState';
+import { initialCameraPitch } from './components/FollowCamera/consts';
+import type { CameraMode, CameraRotation } from './components/FollowCamera/types';
 import { RoomHud } from './components/RoomHud';
 import { RoomScene } from './components/RoomScene';
 import { VoiceChatControls } from './components/VoiceChatControls';
@@ -38,7 +40,12 @@ export const ThreeRoom = (props: ThreeRoomProps = {}) => {
   const [sessionId, setSessionId] = useState<string | null>(null);
   const [activeRoomName, setActiveRoomName] = useState<string>(locationState?.roomName ?? '');
   const [maxClientsCount, setMaxClientsCount] = useState<number>(locationState?.maxClients ?? 8);
+  const [cameraMode, setCameraMode] = useState<CameraMode>('third-person');
   const roomRef = useRef<Room<RoomState> | null>(null);
+  const cameraRotationRef = useRef<CameraRotation>({
+    yaw: 0,
+    pitch: initialCameraPitch,
+  });
   const movementRef = useRef<MovementState>({
     forward: false,
     backward: false,
@@ -62,6 +69,9 @@ export const ThreeRoom = (props: ThreeRoomProps = {}) => {
     movementRef,
     onJump: () => {
       jumpRequestedRef.current = true;
+    },
+    onToggleCameraMode: () => {
+      setCameraMode((prev) => (prev === 'third-person' ? 'first-person' : 'third-person'));
     },
   });
 
@@ -227,6 +237,8 @@ export const ThreeRoom = (props: ThreeRoomProps = {}) => {
       <RoomScene
         players={players}
         sessionId={sessionId}
+        cameraMode={cameraMode}
+        cameraRotationRef={cameraRotationRef}
         localPlayerPositionRef={localPlayerPositionRef}
         movementRef={movementRef}
         jumpRequestedRef={jumpRequestedRef}

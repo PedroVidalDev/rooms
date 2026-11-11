@@ -20,6 +20,8 @@ import type { PlayerBodyProps } from "./types";
 
 export const PlayerBody = (props: PlayerBodyProps) => {
   const {
+    cameraMode = "third-person",
+    cameraRotationRef,
     player,
     isLocal,
     jumpRequestedRef,
@@ -76,7 +78,8 @@ export const PlayerBody = (props: PlayerBodyProps) => {
     const current = body.translation();
 
     if (isLocal) {
-      const { vx, vz } = computeHorizontalVelocity(movementRef?.current);
+      const cameraYaw = cameraRotationRef?.current.yaw ?? 0;
+      const { vx, vz } = computeHorizontalVelocity(movementRef?.current, cameraYaw);
       const currentVel = body.linvel();
       let nextVy = currentVel.y;
 
@@ -158,7 +161,7 @@ export const PlayerBody = (props: PlayerBodyProps) => {
         args={[playerHalfSize, playerHalfSize, playerHalfSize]}
         friction={0}
       />
-      <group ref={characterVisualRef}>
+      <group ref={characterVisualRef} visible={!isLocal || cameraMode !== "first-person"}>
         <MinecraftCharacter
           motionRef={motionRef}
           sessionId={sessionId}

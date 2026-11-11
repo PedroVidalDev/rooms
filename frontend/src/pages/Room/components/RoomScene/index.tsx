@@ -8,6 +8,8 @@ import type { RoomSceneProps } from "./types";
 
 export const RoomScene = (props: RoomSceneProps) => {
   const {
+    cameraMode,
+    cameraRotationRef,
     jumpRequestedRef,
     localPlayerPositionRef,
     movementRef,
@@ -35,7 +37,11 @@ export const RoomScene = (props: RoomSceneProps) => {
         distance={30}
         color="#b9f3ff"
       />
-      <FollowCamera target={localPlayerPositionRef} />
+      <FollowCamera
+        target={localPlayerPositionRef}
+        cameraMode={cameraMode}
+        cameraRotationRef={cameraRotationRef}
+      />
 
       <Physics gravity={[0, -20, 0]} colliders={false} timeStep="vary" interpolate>
         <Arena />
@@ -46,6 +52,8 @@ export const RoomScene = (props: RoomSceneProps) => {
             sessionId={playerSessionId}
             player={player}
             isLocal={playerSessionId === sessionId}
+            cameraMode={cameraMode}
+            cameraRotationRef={cameraRotationRef}
             movementRef={movementRef}
             jumpRequestedRef={jumpRequestedRef}
             onLocalPositionChange={(position) => {

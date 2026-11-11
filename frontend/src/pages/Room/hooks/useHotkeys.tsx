@@ -11,9 +11,10 @@ export type MovementState = {
 type UseHotkeysParams = {
   movementRef: MutableRefObject<MovementState>;
   onJump: () => void;
+  onToggleCameraMode?: () => void;
 };
 
-export const useHotkeys = ({ movementRef, onJump }: UseHotkeysParams) => {
+export const useHotkeys = ({ movementRef, onJump, onToggleCameraMode }: UseHotkeysParams) => {
   const updateMovement = (code: string, pressed: boolean) => {
     switch (code) {
       case 'KeyW':
@@ -57,6 +58,21 @@ export const useHotkeys = ({ movementRef, onJump }: UseHotkeysParams) => {
       preventDefault: true,
     },
     [onJump],
+  );
+
+  useReactHotkeys(
+    'f5',
+    (event) => {
+      event.preventDefault();
+      if (!event.repeat) {
+        onToggleCameraMode?.();
+      }
+    },
+    {
+      keydown: true,
+      preventDefault: true,
+    },
+    [onToggleCameraMode],
   );
 
   useEffect(() => {
