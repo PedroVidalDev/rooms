@@ -227,7 +227,7 @@ export const ThreeRoom = (props: ThreeRoomProps = {}) => {
       <RoomHud
         roomName={activeRoomName}
         roomId={roomInstance?.roomId}
-        playersCount={Object.keys(players).length}
+        players={players}
         maxClients={maxClientsCount}
         onLeaveRoom={handleLeaveRoom}
       />
