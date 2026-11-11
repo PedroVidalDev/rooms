@@ -18,7 +18,14 @@ const port = process.env.PORT ? parseInt(process.env.PORT) : 8080;
 
 const app = express();
 
-app.use("/uploads", express.static(path.resolve(process.cwd(), "uploads")));
+app.use(
+  "/uploads",
+  (_req, res, next) => {
+    res.setHeader("Access-Control-Allow-Origin", "*");
+    next();
+  },
+  express.static(path.resolve(process.cwd(), "uploads")),
+);
 
 app.use(bodyParser.json());
 app.use("/auth", userRoutes);

@@ -27,6 +27,7 @@ export class AuthService {
                 sub: user.getId(),
                 email: user.getEmail(),
                 name: user.getName(),
+                skinUrl: user.getSkinUrl(),
             },
             secret,
             { expiresIn: "1d" }

@@ -3,7 +3,7 @@ import { useNavigate } from "react-router-dom";
 import { Button } from "../../components/Button";
 import { ErrorBanner } from "../../components/ErrorBanner";
 import { useAuthContext } from "../../contexts/AuthContext";
-import { removeAuthToken } from "../../storage/authToken";
+import { removeAuthToken, saveAuthToken } from "../../storage/authToken";
 import { getUserInitials } from "../RoomMenu/components/UserAccountBar/helpers";
 import { CharacterTextureSection } from "./components/CharacterTextureSection";
 import { PasswordChangeSection } from "./components/PasswordChangeSection";
@@ -134,6 +134,8 @@ export const Account = () => {
               "Dados atualizados! Enviamos um código de 6 dígitos para validar sua conta.",
           },
         });
+      } else if (updatedUser.token) {
+        saveAuthToken(updatedUser.token);
       }
     } catch (err) {
       setError(formatAccountUpdateError(err));

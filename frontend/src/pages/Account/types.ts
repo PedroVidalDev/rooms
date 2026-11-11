@@ -9,6 +9,8 @@ export type UpdateAccountPayload = {
 export type UpdateAccountResponse = {
   name: string;
   email: string;
+  skinUrl?: string | null;
+  token?: string;
 };
 
 export type AccountFieldErrors = {

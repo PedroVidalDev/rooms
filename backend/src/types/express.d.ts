@@ -4,6 +4,7 @@ export interface UserJwtPayload extends JwtPayload {
     sub: string;
     email: string;
     name: string;
+    skinUrl?: string | null;
 }
 
 declare global {

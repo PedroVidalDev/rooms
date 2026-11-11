@@ -6,6 +6,7 @@ import { UserUpdateDtoType } from "../dtos/userUpdate.dto.js";
 import { UserDtoType } from "../dtos/user.dto.js";
 import { UserUpdateInput } from "../../generated/prisma/models.js";
 import bcrypt from "bcrypt";
+import jwt from "jsonwebtoken";
 import { UserVerificationCodeService } from "./userVerificationCode.service.js";
 import fs from "fs/promises";
 import path from "path";
@@ -130,8 +131,28 @@ export class UserService {
 
         if (shouldVerify) {
             await this.userVerificationCodeService.sendVerificationCode(updatedUser);
+            return updatedUser.toDto();
         }
 
-        return updatedUser.toDto();
+        const secret = process.env.JWT_SECRET;
+        if (!secret) {
+            throw new Error("JWT_SECRET is not defined");
+        }
+
+        const token = jwt.sign(
+            {
+                sub: updatedUser.getId(),
+                email: updatedUser.getEmail(),
+                name: updatedUser.getName(),
+                skinUrl: updatedUser.getSkinUrl(),
+            },
+            secret,
+            { expiresIn: "1d" }
+        );
+
+        return {
+            ...updatedUser.toDto(),
+            token,
+        };
     }
 }

@@ -44,6 +44,14 @@ export const PlayerBody = (props: PlayerBodyProps) => {
     player.z,
   ]);
   const playerName = player.name.trim();
+  const backendHttpUrl = (
+    import.meta.env.VITE_WEBSOCKET_SERVER ?? "ws://localhost:8080"
+  ).replace(/^ws/, "http");
+  const skinUrl = player.skinUrl
+    ? player.skinUrl.startsWith("http")
+      ? player.skinUrl
+      : `${backendHttpUrl}${player.skinUrl}`
+    : undefined;
 
   const rotateCharacterSmoothly = () => {
     if (!characterVisualRef.current) {
@@ -151,7 +159,11 @@ export const PlayerBody = (props: PlayerBodyProps) => {
         friction={0}
       />
       <group ref={characterVisualRef}>
-        <MinecraftCharacter motionRef={motionRef} sessionId={sessionId} />
+        <MinecraftCharacter
+          motionRef={motionRef}
+          sessionId={sessionId}
+          skinUrl={skinUrl}
+        />
       </group>
       {!isLocal && playerName && (
         <Html

@@ -4,6 +4,7 @@ import { client } from "../colyseus/client";
 type AuthTokenPayload = {
     email: string;
     name: string;
+    skinUrl?: string | null;
     exp: number;
     iat: number;
     sub: string;
