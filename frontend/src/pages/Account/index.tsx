@@ -11,6 +11,8 @@ import { PersonalDataSection } from "./components/PersonalDataSection";
 import {
   formatAccountUpdateError,
   getAuthenticatedUserId,
+  getAuthenticatedUserSkinUrl,
+  resolveSkinUrl,
   updateUserAccount,
   validateAccountForm,
 } from "./helpers";
@@ -26,6 +28,9 @@ export const Account = () => {
   const [newPassword, setNewPassword] = useState("");
   const [skinFile, setSkinFile] = useState<File | null>(null);
   const [skinPreviewUrl, setSkinPreviewUrl] = useState<string | null>(null);
+  const [currentSkinUrl, setCurrentSkinUrl] = useState<string | null>(() =>
+    getAuthenticatedUserSkinUrl(),
+  );
 
   const [fieldErrors, setFieldErrors] = useState<AccountFieldErrors>({});
   const [error, setError] = useState<string | null>(null);
@@ -136,6 +141,9 @@ export const Account = () => {
         });
       } else if (updatedUser.token) {
         saveAuthToken(updatedUser.token);
+        if (updatedUser.skinUrl !== undefined) {
+          setCurrentSkinUrl(updatedUser.skinUrl);
+        }
       }
     } catch (err) {
       setError(formatAccountUpdateError(err));
@@ -302,6 +310,7 @@ export const Account = () => {
           <CharacterTextureSection
             skinFile={skinFile}
             skinPreviewUrl={skinPreviewUrl}
+            activeSkinUrl={skinPreviewUrl ?? resolveSkinUrl(currentSkinUrl)}
             error={fieldErrors.skinFile}
             disabled={isSubmitting}
             onFileSelect={handleSkinFileSelect}

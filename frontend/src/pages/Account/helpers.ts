@@ -23,6 +23,40 @@ export const getAuthenticatedUserId = (): number | null => {
   }
 };
 
+export const getAuthenticatedUserSkinUrl = (): string | null => {
+  const token = getAuthToken();
+  if (!token) {
+    return null;
+  }
+
+  try {
+    const decoded = decodeAuthToken(token);
+    return decoded.skinUrl ?? null;
+  } catch {
+    return null;
+  }
+};
+
+export const resolveSkinUrl = (skinUrl?: string | null): string | undefined => {
+  if (!skinUrl) {
+    return undefined;
+  }
+
+  if (
+    skinUrl.startsWith("http") ||
+    skinUrl.startsWith("blob:") ||
+    skinUrl.startsWith("data:")
+  ) {
+    return skinUrl;
+  }
+
+  const backendHttpUrl = (
+    import.meta.env.VITE_WEBSOCKET_SERVER ?? "ws://localhost:8080"
+  ).replace(/^ws/, "http");
+
+  return `${backendHttpUrl}${skinUrl}`;
+};
+
 export const validateAccountForm = (
   currentName: string,
   currentEmail: string,
