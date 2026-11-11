@@ -1,13 +1,23 @@
+import { useNavigate } from "react-router-dom";
 import { Button } from "../../../../components/Button";
+import { useAuthContext } from "../../../../contexts/AuthContext";
 import { getUserInitials } from "./helpers";
 import type { UserAccountBarProps } from "./types";
 
 export const UserAccountBar = (props: UserAccountBarProps) => {
   const { name, email, onOpenAccountDetails } = props;
 
+  const { logout } = useAuthContext();
+  const navigate = useNavigate();
+
   const displayName = name?.trim() || "Jogador Conectado";
   const displayEmail = email?.trim() || "Conta autenticada";
   const initials = getUserInitials(name, email);
+
+  const handleLogout = () => {
+    logout();
+    navigate("/login", { replace: true });
+  };
 
   return (
     <div
@@ -84,19 +94,34 @@ export const UserAccountBar = (props: UserAccountBarProps) => {
         </div>
       </div>
 
-      <Button
-        variant="outline"
-        onClick={onOpenAccountDetails}
-        style={{
-          padding: "8px 12px",
-          fontSize: 12,
-          borderRadius: 8,
-          flexShrink: 0,
-          whiteSpace: "nowrap",
-        }}
-      >
-        Detalhes da Conta
-      </Button>
+      <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+        <Button
+          variant="outline"
+          onClick={onOpenAccountDetails}
+          style={{
+            padding: "8px 12px",
+            fontSize: 12,
+            borderRadius: 8,
+            flexShrink: 0,
+            whiteSpace: "nowrap",
+          }}
+        >
+          Detalhes da Conta
+        </Button>
+        <Button
+          variant="danger"
+          onClick={handleLogout}
+          style={{
+            padding: "8px 12px",
+            fontSize: 12,
+            borderRadius: 8,
+            flexShrink: 0,
+            whiteSpace: "nowrap",
+          }}
+        >
+          Sair
+        </Button>
+      </div>
     </div>
   );
 };
