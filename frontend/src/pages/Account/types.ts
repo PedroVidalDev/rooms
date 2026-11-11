@@ -15,4 +15,5 @@ export type AccountFieldErrors = {
   email?: string;
   currentPassword?: string;
   password?: string;
+  skinFile?: string;
 };
