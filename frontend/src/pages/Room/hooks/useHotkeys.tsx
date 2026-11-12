@@ -12,9 +12,11 @@ type UseHotkeysParams = {
   movementRef: MutableRefObject<MovementState>;
   onJump: () => void;
   onToggleCameraMode?: () => void;
+  onToggleEnter?: () => void;
+  onToggleEsc?: () => void;
 };
 
-export const useHotkeys = ({ movementRef, onJump, onToggleCameraMode }: UseHotkeysParams) => {
+export const useHotkeys = ({ movementRef, onJump, onToggleCameraMode, onToggleEnter, onToggleEsc }: UseHotkeysParams) => {
   const updateMovement = (code: string, pressed: boolean) => {
     switch (code) {
       case 'KeyW':
@@ -73,6 +75,37 @@ export const useHotkeys = ({ movementRef, onJump, onToggleCameraMode }: UseHotke
       preventDefault: true,
     },
     [onToggleCameraMode],
+  );
+
+  useReactHotkeys(
+    'enter',
+    (event) => {
+      event.preventDefault();
+      if (!event.repeat) {
+        onToggleEnter?.();
+      }
+    },
+    {
+      keydown: true,
+      preventDefault: true,
+    },
+    [onToggleEnter],
+  );
+
+  useReactHotkeys(
+    'esc',
+    (event) => {
+      event.preventDefault();
+      if (!event.repeat) {
+        onToggleEsc?.();
+      }
+    },
+    {
+      keydown: true,
+      preventDefault: true,
+      enableOnFormTags: true,
+    },
+    [onToggleEsc],
   );
 
   useEffect(() => {

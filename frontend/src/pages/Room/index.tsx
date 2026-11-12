@@ -5,6 +5,7 @@ import * as THREE from 'three';
 import { RoomState, type Player } from '../../colyseus/RoomState';
 import { initialCameraPitch } from './components/FollowCamera/consts';
 import type { CameraMode, CameraRotation } from './components/FollowCamera/types';
+import { RoomChat } from './components/RoomChat';
 import { RoomHud } from './components/RoomHud';
 import { RoomScene } from './components/RoomScene';
 import { VoiceChatControls } from './components/VoiceChatControls';
@@ -41,6 +42,7 @@ export const ThreeRoom = (props: ThreeRoomProps = {}) => {
   const [activeRoomName, setActiveRoomName] = useState<string>(locationState?.roomName ?? '');
   const [maxClientsCount, setMaxClientsCount] = useState<number>(locationState?.maxClients ?? 8);
   const [cameraMode, setCameraMode] = useState<CameraMode>('third-person');
+  const [chatEnabled, setChatEnabled] = useState<boolean>(false);
   const roomRef = useRef<Room<RoomState> | null>(null);
   const cameraRotationRef = useRef<CameraRotation>({
     yaw: 0,
@@ -72,6 +74,17 @@ export const ThreeRoom = (props: ThreeRoomProps = {}) => {
     },
     onToggleCameraMode: () => {
       setCameraMode((prev) => (prev === 'third-person' ? 'first-person' : 'third-person'));
+    },
+    onToggleEnter: () => {
+      if (document.pointerLockElement) {
+        document.exitPointerLock?.();
+      }
+      setChatEnabled(true);
+    },
+    onToggleEsc: () => {
+      if (chatEnabled) {
+        setChatEnabled(false);
+      }
     },
   });
 
@@ -224,6 +237,12 @@ export const ThreeRoom = (props: ThreeRoomProps = {}) => {
 
   return (
     <div style={{ width: '100vw', height: '100vh', backgroundColor: '#101820', position: 'relative' }}>
+      {
+        chatEnabled && (
+          <RoomChat roomInstance={roomInstance} onClose={() => setChatEnabled(false)} />
+        )
+      }
+
       <RoomHud
         roomName={activeRoomName}
         roomId={roomInstance?.roomId}

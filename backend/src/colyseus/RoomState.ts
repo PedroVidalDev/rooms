@@ -1,6 +1,7 @@
-import { Schema, type, MapSchema } from "@colyseus/schema";
+import { Schema, type, MapSchema, ArraySchema } from "@colyseus/schema";
 
 export class Player extends Schema {
+  @type("number") id: number = 0;
   @type("number") x: number = 0;
   @type("number") y: number = 0.5;
   @type("number") z: number = 0;
@@ -9,8 +10,17 @@ export class Player extends Schema {
   @type("string") skinUrl: string = "";
 }
 
+export class ChatMessage extends Schema {
+  @type("string") id: string = "";
+  @type("number") playerId: number = 0;
+  @type("string") sender: string = "";
+  @type("string") message: string = "";
+  @type("number") timestamp: number = Date.now();
+}
+
 export class RoomState extends Schema {
   @type({ map: Player }) players = new MapSchema<Player>();
   @type("string") roomName: string = "";
+  @type({ array: ChatMessage }) chat = new ArraySchema<ChatMessage>();
   @type("number") maxClients: number = 8;
 }

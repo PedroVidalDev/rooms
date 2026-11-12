@@ -1,5 +1,5 @@
 import { Room, Client, ServerError } from "@colyseus/core";
-import { Player, RoomState } from "./RoomState.js";
+import { ChatMessage, Player, RoomState } from "./RoomState.js";
 import { verifyRoomToken } from "../middlewares/authMiddleware.js";
 
 type CreateRoomOptions = {
@@ -114,12 +114,29 @@ export class EnglishRoom extends Room<{ state: RoomState }> {
         payload: message.payload,
       });
     });
+
+    this.onMessage("chat", (client, message: string) => {
+      const player = this.state.players.get(client.sessionId);
+      if (!player) {
+        return;
+      }
+
+      const chatMessage = new ChatMessage();
+      chatMessage.id = crypto.randomUUID();
+      chatMessage.playerId = player.id;
+      chatMessage.sender = player.name;
+      chatMessage.message = message;
+      chatMessage.timestamp = Date.now();
+
+      this.state.chat.push(chatMessage);
+    });
   }
 
   onJoin(client: Client, options: any) {
     const player = new Player();
     const spawn = this.findSpawnPosition();
 
+    player.id = client.auth.sub || 0;
     player.x = spawn.x;
     player.y = groundedY;
     player.z = spawn.z;
