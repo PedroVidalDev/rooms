@@ -123,6 +123,7 @@ export class EnglishRoom extends Room<{ state: RoomState }> {
 
       const chatMessage = new ChatMessage();
       chatMessage.id = crypto.randomUUID();
+      chatMessage.type = "USER_MESSAGE";
       chatMessage.playerId = player.id;
       chatMessage.sender = player.name;
       chatMessage.message = message;
@@ -145,12 +146,31 @@ export class EnglishRoom extends Room<{ state: RoomState }> {
     player.skinUrl = client.auth?.skinUrl || "";
 
     this.state.players.set(client.sessionId, player);
+
+    const chatMessage = new ChatMessage();
+    chatMessage.id = crypto.randomUUID();
+    chatMessage.type = "SERVER_LOG";
+    chatMessage.message = `${player.name} entrou na sala!`;
+    chatMessage.timestamp = Date.now();
+
+    this.state.chat.push(chatMessage);
   }
 
   onLeave(client: Client, code: number) {
+    const player = this.state.players.get(client.sessionId);
+    if (!player) return;
+
     this.voiceReadyClients.delete(client.sessionId);
     this.state.players.delete(client.sessionId);
     this.broadcast("voice-peer-left", { sessionId: client.sessionId }, { except: client });
+
+    const chatMessage = new ChatMessage();
+    chatMessage.id = crypto.randomUUID();
+    chatMessage.type = "SERVER_LOG";
+    chatMessage.message = `${player.name} entrou na sala!`;
+    chatMessage.timestamp = Date.now();
+
+    this.state.chat.push(chatMessage);
   }
 
   onDispose() {

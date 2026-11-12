@@ -12,6 +12,7 @@ export class Player extends Schema {
 
 export class ChatMessage extends Schema {
   @type("string") id: string = "";
+  @type("string") type: string = "";
   @type("number") playerId: number = 0;
   @type("string") sender: string = "";
   @type("string") message: string = "";

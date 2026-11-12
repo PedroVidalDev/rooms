@@ -5,6 +5,8 @@ import { type RoomChatMessage, type RoomChatProps } from "./types";
 import { getStateCallbacks } from "@colyseus/sdk";
 import type { ChatMessage } from "../../../../colyseus/RoomState";
 import { getAuthenticatedUserId } from "../../../Account/helpers";
+import { UserMessage } from "./components/UserMessage";
+import { ServerLog } from "./components/ServerLog";
 
 export const RoomChat = (props: RoomChatProps) => {
   const { onClose, roomInstance: room } = props;
@@ -53,6 +55,7 @@ export const RoomChat = (props: RoomChatProps) => {
           ...prev,
           {
             id: chatMessage.id,
+            type: chatMessage.type,
             playerId: chatMessage.playerId,
             sender: chatMessage.sender,
             message: chatMessage.message,
@@ -228,65 +231,17 @@ export const RoomChat = (props: RoomChatProps) => {
               gap: 8,
             }}
           >
-            {messages.map((item) => (
-              <div
-                key={item.id}
-                style={{
-                  alignSelf: item.isOwn ? "flex-end" : "flex-start",
-                  maxWidth: "88%",
-                  display: "flex",
-                  flexDirection: "column",
-                  gap: 4,
-                  padding: "8px 10px",
-                  borderRadius: 10,
-                  background: item.isOwn
-                    ? "rgba(103, 209, 191, 0.12)"
-                    : "#1d232b",
-                  border: item.isOwn
-                    ? "1px solid rgba(103, 209, 191, 0.38)"
-                    : "1px solid #44505c",
-                }}
-              >
-                <div
-                  style={{
-                    display: "flex",
-                    alignItems: "center",
-                    justifyContent: "space-between",
-                    gap: 10,
-                  }}
-                >
-                  <strong
-                    style={{
-                      fontSize: 11,
-                      fontWeight: 700,
-                      letterSpacing: "0.04em",
-                      color: item.isOwn ? "#67d1bf" : "#dfbe62",
-                    }}
-                  >
-                    {item.sender}
-                  </strong>
-                  <span
-                    style={{
-                      fontSize: 10,
-                      color: "rgba(231, 237, 245, 0.48)",
-                    }}
-                  >
-                    {new Date().setTime(item.timestamp as number).toString()}
-                  </span>
-                </div>
+            {messages.map((item) => {
+              if (item.type === "SERVER_LOG") {
+                return (
+                  <ServerLog key={item.id} item={item} />
+                )
+              }
 
-                <span
-                  style={{
-                    fontSize: 13,
-                    lineHeight: 1.4,
-                    color: "#e7edf5",
-                    wordBreak: "break-word",
-                  }}
-                >
-                  {item.message}
-                </span>
-              </div>
-            ))}
+              return (
+                <UserMessage key={item.id} item={item} />
+              )
+            })}
           </div>
         )}
       </div>

@@ -3,6 +3,7 @@ import type { RoomState } from "../../../../colyseus/RoomState";
 
 export type RoomChatMessage = {
   id: string;
+  type: string;
   playerId?: number;
   sender: string;
   message: string;

@@ -21,6 +21,7 @@ defineTypes(Player, {
 
 export class ChatMessage extends Schema {
   id = "";
+  type = "";
   playerId = 0;
   sender = "";
   message = "";
@@ -29,6 +30,7 @@ export class ChatMessage extends Schema {
 
 defineTypes(ChatMessage, {
   id: "string",
+  type: "string",
   playerId: "number",
   sender: "string",
   message: "string",
