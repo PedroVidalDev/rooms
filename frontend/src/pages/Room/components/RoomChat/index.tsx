@@ -18,7 +18,7 @@ export const RoomChat = (props: RoomChatProps) => {
   const inputRef = useRef<HTMLInputElement>(null);
   const previewTimeoutRef = useRef<number | null>(null);
 
-  const isVisible = chatEnabled || isPreviewVisible;
+  const isMessagesVisible = chatEnabled || isPreviewVisible;
   const displayedMessages = chatEnabled ? messages : messages.slice(-3);
 
   const handleSendMessage = (e: React.FormEvent) => {
@@ -54,7 +54,7 @@ export const RoomChat = (props: RoomChatProps) => {
     if (container) {
       container.scrollTop = container.scrollHeight;
     }
-  }, [messages, isVisible]);
+  }, [messages, isMessagesVisible]);
   
   useEffect(() => {
     if (!room) {
@@ -122,10 +122,7 @@ export const RoomChat = (props: RoomChatProps) => {
         gap: 12,
         boxSizing: "border-box",
         overflow: "hidden",
-        opacity: isVisible ? 1 : 0,
-        transform: isVisible ? "translateY(0)" : "translateY(8px)",
         pointerEvents: chatEnabled ? "auto" : "none",
-        transition: "opacity 0.22s ease, transform 0.22s ease",
       }}
     >
       {chatEnabled && (
@@ -233,57 +230,95 @@ export const RoomChat = (props: RoomChatProps) => {
         </>
       )}
 
-      <div
-        ref={messagesContainerRef}
-        className="room-chat-scroll"
-        style={{
-          display: "flex",
-          flexDirection: "column",
-          height: chatEnabled ? 220 : "auto",
-          overflowY: chatEnabled ? "auto" : "visible",
-          paddingRight: chatEnabled ? 4 : 0,
-        }}
-      >
-        {displayedMessages.length === 0 ? (
-          chatEnabled && (
+      {isMessagesVisible && (
+        <div
+          ref={messagesContainerRef}
+          className="room-chat-scroll"
+          style={{
+            display: "flex",
+            flexDirection: "column",
+            height: chatEnabled ? 220 : "auto",
+            overflowY: chatEnabled ? "auto" : "visible",
+            paddingRight: chatEnabled ? 4 : 0,
+          }}
+        >
+          {displayedMessages.length === 0 ? (
+            chatEnabled && (
+              <div
+                style={{
+                  margin: "auto 0",
+                  background: "#1d232b",
+                  border: "1px solid #44505c",
+                  borderRadius: 10,
+                  padding: "16px 12px",
+                  textAlign: "center",
+                  fontSize: 13,
+                  color: "rgba(231, 237, 245, 0.58)",
+                }}
+              >
+                Nenhuma mensagem ainda. Comece a conversa!
+              </div>
+            )
+          ) : (
             <div
               style={{
-                margin: "auto 0",
-                background: "#1d232b",
-                border: "1px solid #44505c",
-                borderRadius: 10,
-                padding: "16px 12px",
-                textAlign: "center",
-                fontSize: 13,
-                color: "rgba(231, 237, 245, 0.58)",
+                marginTop: "auto",
+                display: "flex",
+                flexDirection: "column",
+                gap: 8,
               }}
             >
-              Nenhuma mensagem ainda. Comece a conversa!
+              {displayedMessages.map((item) => {
+                if (item.type === "SERVER_LOG") {
+                  return (
+                    <ServerLog key={item.id} item={item} />
+                  )
+                }
+
+                return (
+                  <UserMessage key={item.id} item={item} />
+                )
+              })}
             </div>
-          )
-        ) : (
-          <div
+          )}
+        </div>
+      )}
+
+      {!isMessagesVisible && (
+        <div
+          style={{
+            alignSelf: "flex-start",
+            display: "inline-flex",
+            alignItems: "center",
+            gap: 8,
+            padding: "8px 12px",
+            borderRadius: 10,
+            background: "rgba(10, 18, 28, 0.82)",
+            border: "1px solid rgba(88, 112, 138, 0.36)",
+            boxShadow: "0 8px 22px rgba(0, 0, 0, 0.25)",
+            fontSize: 12,
+            color: "rgba(231, 237, 245, 0.82)",
+          }}
+        >
+          <span>Aperte</span>
+          <span
             style={{
-              marginTop: "auto",
-              display: "flex",
-              flexDirection: "column",
-              gap: 8,
+              fontSize: 10,
+              fontWeight: 700,
+              letterSpacing: "0.08em",
+              textTransform: "uppercase",
+              padding: "3px 6px",
+              borderRadius: 6,
+              background: "#1d232b",
+              border: "1px solid rgba(103, 209, 191, 0.42)",
+              color: "#67d1bf",
             }}
           >
-            {displayedMessages.map((item) => {
-              if (item.type === "SERVER_LOG") {
-                return (
-                  <ServerLog key={item.id} item={item} />
-                )
-              }
-
-              return (
-                <UserMessage key={item.id} item={item} />
-              )
-            })}
-          </div>
-        )}
-      </div>
+            ENTER
+          </span>
+          <span>para digitar no chat</span>
+        </div>
+      )}
 
       {chatEnabled && (
         <form
