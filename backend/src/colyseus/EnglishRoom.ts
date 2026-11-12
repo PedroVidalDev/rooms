@@ -167,7 +167,7 @@ export class EnglishRoom extends Room<{ state: RoomState }> {
     const chatMessage = new ChatMessage();
     chatMessage.id = crypto.randomUUID();
     chatMessage.type = "SERVER_LOG";
-    chatMessage.message = `${player.name} entrou na sala!`;
+    chatMessage.message = `${player.name} saiu na sala!`;
     chatMessage.timestamp = Date.now();
 
     this.state.chat.push(chatMessage);
