@@ -13,5 +13,6 @@ export type RoomChatMessage = {
 
 export type RoomChatProps = {
   roomInstance: Room<RoomState, RoomState> | null;
+  chatEnabled: boolean;
   onClose?: () => void;
 };

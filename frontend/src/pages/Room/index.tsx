@@ -237,11 +237,11 @@ export const ThreeRoom = (props: ThreeRoomProps = {}) => {
 
   return (
     <div style={{ width: '100vw', height: '100vh', backgroundColor: '#101820', position: 'relative' }}>
-      {
-        chatEnabled && (
-          <RoomChat roomInstance={roomInstance} onClose={() => setChatEnabled(false)} />
-        )
-      }
+      <RoomChat
+        roomInstance={roomInstance}
+        chatEnabled={chatEnabled}
+        onClose={() => setChatEnabled(false)}
+      />
 
       <RoomHud
         roomName={activeRoomName}

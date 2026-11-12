@@ -15,7 +15,7 @@ export const UserMessage = (props: UserMessageProps) => {
                 padding: "8px 10px",
                 borderRadius: 10,
                 background: item.isOwn
-                ? "rgba(103, 209, 191, 0.12)"
+                ? "rgba(18, 38, 46, 0.92)"
                 : "#1d232b",
                 border: item.isOwn
                 ? "1px solid rgba(103, 209, 191, 0.38)"

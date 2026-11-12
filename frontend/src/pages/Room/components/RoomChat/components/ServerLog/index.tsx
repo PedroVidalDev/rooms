@@ -12,8 +12,10 @@ export const ServerLog = (props: ServerLogProps) => {
                 display: "flex",
                 flexDirection: "column",
                 gap: 4,
-                padding: "8px 10px",
-                borderRadius: 10
+                padding: "6px 12px",
+                borderRadius: 10,
+                background: "rgba(10, 18, 28, 0.78)",
+                border: "1px solid rgba(223, 190, 98, 0.24)",
             }}
         >
             <span
