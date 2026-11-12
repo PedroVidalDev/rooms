@@ -19,9 +19,11 @@ defineTypes(Player, {
   skinUrl: "string",
 });
 
+export type ChatMessageType = "USER_MESSAGE" | "SERVER_LOG";
+
 export class ChatMessage extends Schema {
   id = "";
-  type = "";
+  type: ChatMessageType = "USER_MESSAGE";
   playerId = 0;
   sender = "";
   message = "";

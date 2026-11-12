@@ -1,9 +1,9 @@
 import type { Room } from "@colyseus/sdk";
-import type { RoomState } from "../../../../colyseus/RoomState";
+import type { ChatMessageType, RoomState } from "../../../../colyseus/RoomState";
 
 export type RoomChatMessage = {
   id: string;
-  type: string;
+  type: ChatMessageType;
   playerId?: number;
   sender: string;
   message: string;
